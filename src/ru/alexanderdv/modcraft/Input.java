@@ -20,6 +20,16 @@ public class Input implements Destroyable {
 		}
 	}
 
+	public final int KEY_END = Keyboard.KEY_END;
+	public final int KEY_ESCAPE = Keyboard.KEY_ESCAPE;
+	public final int KEY_SPACE = Keyboard.KEY_SPACE;
+	public final int KEY_F = Keyboard.KEY_F;
+	public final int KEY_W = Keyboard.KEY_W;
+	public final int KEY_A = Keyboard.KEY_A;
+	public final int KEY_S = Keyboard.KEY_S;
+	public final int KEY_D = Keyboard.KEY_D;
+	public final int KEY_LCONTROL = Keyboard.KEY_LCONTROL;
+
 	final KeysList stateKeys = new KeysList(), keys = new KeysList();
 
 	public void init() {
@@ -53,4 +63,8 @@ public class Input implements Destroyable {
 	public float getDX() { return Mouse.getDX(); }
 
 	public float getDY() { return Mouse.getDY(); }
+
+	public boolean isKeyDown(int key) { return Keyboard.isKeyDown(key); }
+
+	public boolean next() { return Keyboard.next(); }
 }

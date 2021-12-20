@@ -10,6 +10,8 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.util.Renderable;
 import org.lwjgl.util.vector.Vector4f;
 
+import ru.alexanderdv.utils.VectorD;
+
 public class Block {
 	private static int _enum_counter = 0;
 
@@ -32,7 +34,7 @@ public class Block {
 		public void render() {
 			for (int p = 0; p < vertices.length; p++) {
 				glTexCoord2f(texturing[p][0], texturing[p][1]);
-				glVertex3d(vertices[p][0] + sideDirectionVector.coords[0] - 0.5d, vertices[p][1] + sideDirectionVector.coords[1] - 0.5d, vertices[p][2] + sideDirectionVector.coords[2] - 0.5d);
+				glVertex3d(vertices[p][0] + sideDirectionVector.getX() - 0.5d, vertices[p][1] + sideDirectionVector.getY() - 0.5d, vertices[p][2] + sideDirectionVector.getZ() - 0.5d);
 			}
 		}
 
@@ -54,6 +56,8 @@ public class Block {
 	}
 
 	public static final HashMap<Integer, String> names = new HashMap<>();
+	public static double sizeResolution = 100000000;
+
 	int id, x, y, z;
 	World w;
 
@@ -71,7 +75,9 @@ public class Block {
 
 	public Vector4f[] getColors() { return new Vector4f[] { getName().contains("leaves") || getName().contains("grass") ? new Vector4f(0, 1, 0, 1) : new Vector4f(1, 1, 1, 1) }; }
 
-	public boolean isTransparent() { return isGas() || isLiquid() || isVoid() || getName().contains("glass") || getName().contains("sapling") || getName().contains("leaves"); }
+	public boolean isTransparent() { return isGas() || isLiquid() || isVoid() || isMeshed() || getName().contains("glass"); }
+
+	public boolean isMeshed() { return getName().contains("leaves") || getName().contains("sapling"); }
 
 	public boolean isSolid() { return !isVoid() && !isLiquid() && !isGas(); }
 
@@ -82,6 +88,7 @@ public class Block {
 	public boolean isVoid() { return id < 0; }
 
 	public void render() {
+		GL11.glScaled(sizeResolution / (sizeResolution + 1), sizeResolution / (sizeResolution + 1), sizeResolution / (sizeResolution + 1));
 		for (int i = 0; i < Side6.values().length; i++)
 			if (!w.isNeedHide(x, y, z)[i]) {
 				GL11.glBindTexture(3553, getTextures()[i % getTextures().length]);
@@ -90,5 +97,6 @@ public class Block {
 				Side6.values()[i].render();
 				GL11.glEnd();
 			}
+		GL11.glScaled((sizeResolution + 1) / sizeResolution, (sizeResolution + 1) / sizeResolution, (sizeResolution + 1) / sizeResolution);
 	}
 }

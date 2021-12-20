@@ -2,9 +2,15 @@ package ru.alexanderdv.modcraft;
 
 import static org.lwjgl.opengl.GL11.glTranslated;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Random;
+
 import javax.swing.JFrame;
 
 import ru.alexanderdv.modcraft.World.GenerationType;
+import ru.alexanderdv.utils.ExceptionsHandler;
+import ru.alexanderdv.utils.lwjgl.Timed;
 
 public class Main {
 	public static void main(String args[]) { new ModCraft(false).start(); }
@@ -16,6 +22,7 @@ public class Main {
 		Textures textures;
 		World world;
 		Player player;
+		ArrayList<Shader> shaders = new ArrayList<>();
 
 		public ModCraft(boolean displayInFrame) {
 			windowBase = new TabWindowsBase(this.getClass().getSimpleName());
@@ -55,22 +62,39 @@ public class Main {
 				Block.names.put(i, Block.names.get(i).replace(" ", "").replace(".png", ""));
 			}
 
-			world = new World(64, 16, 64, GenerationType.RANDOM);
+			world = new World(16, 6, 16, GenerationType.RANDOM, GenerationType.AIR_ON_TOP);
 
 			player = new Player();
+
+			shaders.add(new FlickingShader());
+		}
+
+		public interface Shader extends Timed {}
+
+		public static class FlickingShader implements Shader {
+			double overlayTexturesFlickingModifier = 1, currentFlickingOffset = 0;
+			Random random = new Random();
+
+			@Override
+			public void render() { glTranslated(currentFlickingOffset * 0, currentFlickingOffset * 0, currentFlickingOffset * 1); }
+
+			@Override
+			public void update() { currentFlickingOffset = (random.nextDouble() - 0.5d) / 1001d * overlayTexturesFlickingModifier; }
 		}
 
 		public static class Time {
-			private double nano = 1, resolutionModifier = 1d, updateCount = 50, lastRender = getNow(), lastUpdate = getNow(), needUpdateCount = 0, scale = 1;
+			private double nano = 1, resolutionModifier = 1d, ups = 50, lastRender = getNow(), lastUpdate = getNow(), needUpdateCount = 0, scale = 1, start = getNow();
 
 			public double getResolution() { return (nano != 0 ? 1000000000d : 1000d) * resolutionModifier; }
 
 			public double getNow() { return (nano != 0 ? System.nanoTime() / 1000000d : System.currentTimeMillis()) / 1000d * getResolution(); }
 
+			public double getWork() { return getNow() - start; }
+
 			public double fps() { return getResolution() / -(lastRender - (lastRender = getNow())); }
 
 			public void doNeedUpdateCount(Runnable update, Runnable inLast) {
-				for (needUpdateCount += -(lastUpdate - (lastUpdate = getNow())) / getResolution() * updateCount; needUpdateCount > 0; needUpdateCount--) {
+				for (needUpdateCount += -(lastUpdate - (lastUpdate = getNow())) / getResolution() * ups; needUpdateCount > 0; needUpdateCount--) {
 					update.run();
 					if (needUpdateCount < 1)
 						inLast.run();
@@ -86,13 +110,17 @@ public class Main {
 
 		public void start() {
 			time = new Time();
+			ExceptionsHandler handler = new ExceptionsHandler();
 			while (!stopped())
-				try {
+				handler.tryPrint(() -> {
+					time.doNeedUpdateCount(() -> player.controls(windowBase.display, windowBase.input), () -> {
+						player.doForEachSeenBlock((x, y, z) -> world.calcNeedHide(x, y, z)/* fps x2 */);
+						shaders.forEach((shader) -> shader.update());
+					});
+
 					player.openEyes(windowBase.display.getWidth(), windowBase.display.getHeight(), 100d);
+					shaders.forEach((shader) -> shader.render());
 					player.pointOfVision(player);
-
-					time.doNeedUpdateCount(() -> player.controls(windowBase.display, windowBase.input), () -> player.doForEachSeenBlock((x, y, z) -> world.calcNeedHide(x, y, z)/* fps x2 */));
-
 					player.selectRenderDirectionByRotation(world);
 					player.doForEachSeenBlock((x, y, z) -> {
 						if (world.getBlock(x, y, z).id != 0) {
@@ -101,13 +129,10 @@ public class Main {
 							glTranslated(-x, -y, -z);
 						}
 					});
-
 					player.closeEyes();
-					windowBase.print("FPS: " + time.fps());
+					windowBase.print("FPS: " + time.fps() + "\nRotation" + Arrays.toString(player.rotation.coords));
 					windowBase.repaint();
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
+				});
 			endProgram();
 		}
 

@@ -2,10 +2,14 @@ package ru.alexanderdv.modcraft;
 
 public class Controller extends POV {
 	boolean escape = true, fly = true, ended;
-	protected double[] deltas = { 0, 0, 0 };
-	float senvisity = 100, kinematics = 1f, speed = 1.5f, airSlowing = 1.5f;
+	protected double[] deltas = { 0, 0, 0 }, rotationsDeltas = { 0, 0 };
+	double jump = 50, gravity = 9.8;
+	double speed = 1, inertia = 1;
+	double sensitivity = 1, kinematics = 1;// TODO 0.5 divide world picture to 2, mind this bug how non strict blocks
 
 	public void controls(DisplayTabWindow display, Input input) {
+		double keyboardTune = 1 / 5d, mouseTune = 1 / 15d;
+		double speed = this.speed * keyboardTune, sensitivity = this.sensitivity * mouseTune;
 		if (input.isKeyDown("end"))
 			ended = true;
 		while (input.next()) {
@@ -20,38 +24,46 @@ public class Controller extends POV {
 				fly = !fly;
 			if (!fly)
 				if (input.isKeyDown("space"))
-					deltas[1] += 50;
+					deltas[1] += jump;
 		}
 		if (escape)
 			return;
+		// TODO change all physical system: add update adding to delta and in the end
+		// multiply it to speed or sensitivity, change delta to velocity
+		// TODO add shift sprinting
+		// Decide between realistic physics model or many interface properties. I think,
+		// that second, that's a game, not physical simulation. Hmm, but default value
+		// isn't zero, its one, HERE no conflicts (what about other places?). Stop, but
+		// if one is no kinematics, what is yes? and -1 is moving back?
+		// Also decide between method realistic time simulation or physics, first is
+		// more useful, you need do it only in main timer, but you will restricted by
+		// default updates count.
 
 		double za = ((input.isKeyDown("w") ? 1 : 0) - (input.isKeyDown("s") ? 1 : 0));
 		double xa = ((input.isKeyDown("a") ? 1 : 0) - (input.isKeyDown("d") ? 1 : 0));
 		double sin = Math.sin(Math.toRadians(rotation.coords[1]));
 		double cos = Math.cos(Math.toRadians(rotation.coords[1]));
-		deltas[0] += xa * cos - za * sin;
-		deltas[2] += za * cos + xa * sin;
+		deltas[0] += (xa * cos - za * sin) * speed;
+		deltas[2] += (za * cos + xa * sin) * speed;
 		if (fly) {
 			if (input.isKeyDown("space"))
-				deltas[1]++;
+				deltas[1] += speed;
 			if (input.isKeyDown("control"))
-				deltas[1]--;
-		} else deltas[1]--;
+				deltas[1] -= speed;
+		} else deltas[1] -= gravity;
 
-		rotation.coords[1] += ((float) input.getDX()) / 2000 * senvisity;
-		rotation.coords[0] -= ((float) input.getDY()) / 2000 * senvisity;
+		rotationsDeltas[1] += input.getDX() * sensitivity;
+		rotationsDeltas[0] -= input.getDY() * sensitivity;
 
-		double finalSpeed = speed / airSlowing, tunedInertia = kinematics * 10 / finalSpeed;
 		for (int c = 0; c < coords.length; c++) {
-			inertia[c].setCoordDelta(coords[c], deltas[c]);
-			inertia[c].setSpeedInertia(finalSpeed, tunedInertia);
-			inertia[c].calculate();
-			coords[c] = inertia[c].getCoord();
-			deltas[c] = inertia[c].getDelta();
+			coords[c] += deltas[c] / inertia;
+			deltas[c] -= deltas[c] / inertia;
+		}
+		for (int c = 0; c < rotation.coords.length; c++) {
+			rotation.coords[c] += rotationsDeltas[c] / kinematics;
+			rotationsDeltas[c] -= rotationsDeltas[c] / kinematics;
 		}
 	}
-
-	Inertia[] inertia = new Inertia[] { new Inertia(), new Inertia(), new Inertia() };
 
 	int xSize = 0, ySize = 0, zSize = 0;
 	int xCount = 0, yCount = 0, zCount = 0;
@@ -68,7 +80,6 @@ public class Controller extends POV {
 			xCount = world.xSize;
 			xModifier = -1;
 		}
-
 		if (rotation.coords[1] > 90 && rotation.coords[1] < 270) {
 			zSize = world.zSize - 1;
 			zCount = -1;

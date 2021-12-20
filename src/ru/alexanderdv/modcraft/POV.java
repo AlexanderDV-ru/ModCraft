@@ -1,11 +1,13 @@
 package ru.alexanderdv.modcraft;
 
+import ru.alexanderdv.utils.VectorD;
+
 public class POV extends VectorD {
 	protected VectorD rotation = new VectorD(2);
 
 	public VectorD getRotation() { return rotation; }
 
-	public void setRotation(VectorD rotation) { this.rotation.setCoords(rotation.coords); }
+	public void setRotation(VectorD rotation) { this.rotation.coords = rotation.coords; }
 
 	public double getRotationX() { return rotation.coords[0]; }
 

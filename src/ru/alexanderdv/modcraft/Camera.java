@@ -19,6 +19,7 @@ import static org.lwjgl.opengl.GL11.glRotated;
 
 import org.lwjgl.util.glu.GLU;
 
+import ru.alexanderdv.utils.MathUtils;
 import ru.alexanderdv.utils.lwjgl.VerticalNormalised;
 
 public interface Camera extends VerticalNormalised {
@@ -38,8 +39,8 @@ public interface Camera extends VerticalNormalised {
 	}
 
 	public default void pointOfVision(POV p) {
-		glRotated(p.rotation.coords[0] = (360 + p.rotation.coords[0] % 360) % 360, 1, 0, 0);
-		glRotated(p.rotation.coords[1] = (360 + p.rotation.coords[1] % 360) % 360, 0, 1, 0);
+		glRotated(p.rotation.coords[0] = MathUtils.loopD(p.rotation.coords[0], 0, 360), 1, 0, 0);
+		glRotated(p.rotation.coords[1] = MathUtils.loopD(p.rotation.coords[1], 0, 360), 0, 1, 0);
 		glTranslated(-p.coords[0], -p.coords[1], -p.coords[2]);
 	}
 

@@ -20,16 +20,6 @@ public class Input implements Destroyable {
 		}
 	}
 
-	public final int KEY_END = Keyboard.KEY_END;
-	public final int KEY_ESCAPE = Keyboard.KEY_ESCAPE;
-	public final int KEY_SPACE = Keyboard.KEY_SPACE;
-	public final int KEY_F = Keyboard.KEY_F;
-	public final int KEY_W = Keyboard.KEY_W;
-	public final int KEY_A = Keyboard.KEY_A;
-	public final int KEY_S = Keyboard.KEY_S;
-	public final int KEY_D = Keyboard.KEY_D;
-	public final int KEY_LCONTROL = Keyboard.KEY_LCONTROL;
-
 	final KeysList stateKeys = new KeysList(), keys = new KeysList();
 
 	public void init() {
@@ -64,7 +54,24 @@ public class Input implements Destroyable {
 
 	public float getDY() { return Mouse.getDY(); }
 
-	public boolean isKeyDown(int key) { return Keyboard.isKeyDown(key); }
-
 	public boolean next() { return Keyboard.next(); }
+
+	public boolean isKeyDown(Object key) {
+		try {
+			return Keyboard.isKeyDown((int) Double.parseDouble(key + ""));
+		} catch (Exception e) {
+			key = (key + "").toLowerCase().replaceAll("key[_]*", "").replace("ctrl", "control").replace("alt", "menu").replace("win", "meta").toUpperCase();
+			if (key.equals("ENTER"))
+				return Keyboard.isKeyDown(Keyboard.KEY_NUMPADENTER) || Keyboard.isKeyDown(Keyboard.KEY_RETURN);
+			if (key.equals("CONTROL"))
+				return Keyboard.isKeyDown(Keyboard.KEY_LCONTROL) || Keyboard.isKeyDown(Keyboard.KEY_RCONTROL);
+			if (key.equals("MENU"))
+				return Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU);
+			if (key.equals("SHIFT"))
+				return Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
+			if (key.equals("META"))
+				return Keyboard.isKeyDown(Keyboard.KEY_LMETA) || Keyboard.isKeyDown(Keyboard.KEY_RMETA);
+			return Keyboard.isKeyDown(Keyboard.getKeyIndex(key + ""));
+		}
+	}
 }

@@ -6,35 +6,35 @@ public class Controller extends POV {
 	float senvisity = 100, kinematics = 1f, speed = 1.5f, airSlowing = 1.5f;
 
 	public void controls(DisplayTabWindow display, Input input) {
-		if (input.isKeyDown(input.KEY_END))
+		if (input.isKeyDown("end"))
 			ended = true;
 		while (input.next()) {
-			if (input.isKeyDown(input.KEY_ESCAPE)) {
+			if (input.isKeyDown("escape")) {
 				input.setCursorPosition(display.getWidth() / 2, display.getHeight() / 2);
 				escape = !escape;
 				input.setGrabbed(!escape);
 			}
 			if (escape)
 				continue;
-			if (input.isKeyDown(input.KEY_F))
+			if (input.isKeyDown("f"))
 				fly = !fly;
 			if (!fly)
-				if (input.isKeyDown(input.KEY_SPACE))
+				if (input.isKeyDown("space"))
 					deltas[1] += 50;
 		}
 		if (escape)
 			return;
 
-		double za = ((input.isKeyDown(input.KEY_W) ? 1 : 0) - (input.isKeyDown(input.KEY_S) ? 1 : 0));
-		double xa = ((input.isKeyDown(input.KEY_A) ? 1 : 0) - (input.isKeyDown(input.KEY_D) ? 1 : 0));
+		double za = ((input.isKeyDown("w") ? 1 : 0) - (input.isKeyDown("s") ? 1 : 0));
+		double xa = ((input.isKeyDown("a") ? 1 : 0) - (input.isKeyDown("d") ? 1 : 0));
 		double sin = Math.sin(Math.toRadians(rotation.coords[1]));
 		double cos = Math.cos(Math.toRadians(rotation.coords[1]));
 		deltas[0] += xa * cos - za * sin;
 		deltas[2] += za * cos + xa * sin;
 		if (fly) {
-			if (input.isKeyDown(input.KEY_SPACE))
+			if (input.isKeyDown("space"))
 				deltas[1]++;
-			if (input.isKeyDown(input.KEY_LCONTROL))
+			if (input.isKeyDown("control"))
 				deltas[1]--;
 		} else deltas[1]--;
 

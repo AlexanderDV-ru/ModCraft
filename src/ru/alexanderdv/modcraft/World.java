@@ -1,12 +1,24 @@
 package ru.alexanderdv.modcraft;
 
+import java.util.Random;
+
+import ru.alexanderdv.utils.ParserDV;
+
 public class World {
+	public static interface Generation { Block getBlock(int x, int y, int z, World w); }
+
+	public static enum GenerationType implements Generation {
+		RANDOM { public Block getBlock(int x, int y, int z, World w) { return new Block(x, y, z, w, ParserDV.bound(new Random().nextInt(), 0, Block.names.size())); } };
+
+		public abstract Block getBlock(int x, int y, int z, World w);
+	}
+
 	int xSize, ySize, zSize;
 	Block[] blocks;
 	boolean[][] needHide;
 	int chunkSize = 16;
 
-	public World(int width, int height, int depth) {
+	public World(int width, int height, int depth, Generation generation) {
 		this.xSize = width;
 		this.ySize = height;
 		this.zSize = depth;
@@ -15,7 +27,7 @@ public class World {
 		for (int x = 0; x < width; x++)
 			for (int y = 0; y < height; y++)
 				for (int z = 0; z < depth; z++)
-					blocks[x * height * depth + y * depth + z] = new Block(x, y, z, this, 0);
+					blocks[x * height * depth + y * depth + z] = generation.getBlock(x, y, z, this);
 	}
 
 	public void setBlock(int x, int y, int z, int id) { blocks[((x * ySize * zSize + y * zSize + z) % (xSize * ySize * zSize) + (xSize * ySize * zSize)) % (xSize * ySize * zSize)].id = id; }

@@ -2,11 +2,9 @@ package ru.alexanderdv.modcraft;
 
 import static org.lwjgl.opengl.GL11.glTranslated;
 
-import java.util.Random;
-
 import javax.swing.JFrame;
 
-import ru.alexanderdv.utils.ParserDV;
+import ru.alexanderdv.modcraft.World.GenerationType;
 
 public class Main {
 	public static void main(String args[]) { new ModCraft(false).start(); }
@@ -57,24 +55,46 @@ public class Main {
 				Block.names.put(i, Block.names.get(i).replace(" ", "").replace(".png", ""));
 			}
 
-			world = new World(64, 256, 64);
-			for (int x = 1; x < world.xSize - 1; x++)
-				for (int z = 1; z < world.zSize - 1; z++)
-					for (int y = 1; y < 10 - 1; y++)
-						world.setBlock(x, y, z, ParserDV.bound(new Random().nextInt(), 0, Block.names.size()));
+			world = new World(64, 16, 64, GenerationType.RANDOM);
+
 			player = new Player();
 		}
 
+		public static class Time {
+			private double nano = 1, resolutionModifier = 1d, updateCount = 50, lastRender = getNow(), lastUpdate = getNow(), needUpdateCount = 0, scale = 1;
+
+			public double getResolution() { return (nano != 0 ? 1000000000d : 1000d) * resolutionModifier; }
+
+			public double getNow() { return (nano != 0 ? System.nanoTime() / 1000000d : System.currentTimeMillis()) / 1000d * getResolution(); }
+
+			public double fps() { return getResolution() / -(lastRender - (lastRender = getNow())); }
+
+			public void doNeedUpdateCount(Runnable update, Runnable inLast) {
+				for (needUpdateCount += -(lastUpdate - (lastUpdate = getNow())) / getResolution() * updateCount; needUpdateCount > 0; needUpdateCount--) {
+					update.run();
+					if (needUpdateCount < 1)
+						inLast.run();
+				}
+			}
+
+			public double getScale() { return scale; }
+
+			public void setScale(double scale) { this.scale = scale; }
+		}
+
+		Time time;
+
 		public void start() {
-			long lastTime = System.currentTimeMillis();
+			time = new Time();
 			while (!stopped())
 				try {
 					player.openEyes(windowBase.display.getWidth(), windowBase.display.getHeight(), 100d);
 					player.pointOfVision(player);
-					player.controls(windowBase.display, windowBase.input);
+
+					time.doNeedUpdateCount(() -> player.controls(windowBase.display, windowBase.input), () -> player.doForEachSeenBlock((x, y, z) -> world.calcNeedHide(x, y, z)/* fps x2 */));
 
 					player.selectRenderDirectionByRotation(world);
-					player.doForEachBlockInFieldOfVision((x, y, z) -> {
+					player.doForEachSeenBlock((x, y, z) -> {
 						if (world.getBlock(x, y, z).id != 0) {
 							glTranslated(x, y, z);
 							world.getBlock(x, y, z).render();
@@ -83,7 +103,7 @@ public class Main {
 					});
 
 					player.closeEyes();
-					windowBase.print("FPS: " + 1000f / -(lastTime - (lastTime = System.currentTimeMillis())));
+					windowBase.print("FPS: " + time.fps());
 					windowBase.repaint();
 				} catch (Exception e) {
 					e.printStackTrace();

@@ -93,7 +93,7 @@ public class Controller extends POV {
 
 	public static interface ForEachPlace { void doForPlace(int x, int y, int z); }
 
-	public void doForEachBlockInFieldOfVision(ForEachPlace operation) {
+	public void doForEachSeenBlock(ForEachPlace operation) {
 		for (int x = xSize; x * xModifier > xCount * xModifier; x -= xModifier)
 			for (int y = ySize; y * yModifier > yCount * yModifier; y -= yModifier)
 				for (int z = zSize; z * zModifier > zCount * zModifier; z -= zModifier)

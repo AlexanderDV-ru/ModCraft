@@ -5,7 +5,7 @@ import ru.alexanderdv.utils.ParserDV;
 public class VectorD {
 	protected double[] coords;
 
-	public VectorD(double[] coords) {
+	public VectorD(double... coords) {
 		super();
 		this.coords = coords;
 	}

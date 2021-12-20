@@ -15,24 +15,24 @@ public class World {
 		for (int x = 0; x < width; x++)
 			for (int y = 0; y < height; y++)
 				for (int z = 0; z < depth; z++)
-					blocks[x * height * depth + y * depth + z] = new Block(x, y, z, 0);
+					blocks[x * height * depth + y * depth + z] = new Block(x, y, z, this, 0);
 	}
 
 	public void setBlock(int x, int y, int z, int id) { blocks[((x * ySize * zSize + y * zSize + z) % (xSize * ySize * zSize) + (xSize * ySize * zSize)) % (xSize * ySize * zSize)].id = id; }
 
 	public Block getBlock(int x, int y, int z) { return blocks[((x * ySize * zSize + y * zSize + z) % (xSize * ySize * zSize) + (xSize * ySize * zSize)) % (xSize * ySize * zSize)]; }
 
-	public boolean[] needHide(int x, int y, int z) {
-		needHide[((x * ySize * zSize + y * zSize + z) % (xSize * ySize * zSize) + (xSize * ySize * zSize)) % (xSize * ySize * zSize)] = new boolean[] {
+	public void calcNeedHide(int x, int y, int z) {
+		setNeedHide(x, y, z, new boolean[] {
 
 				!getBlock(x, y + 1, z).isTransparent(), !getBlock(x, y - 1, z).isTransparent(),
 
 				!getBlock(x, y, z + 1).isTransparent(), !getBlock(x, y, z - 1).isTransparent(),
 
-				!getBlock(x + 1, y, z).isTransparent(), !getBlock(x - 1, y, z).isTransparent(), };
-
-		return needHide[((x * ySize * zSize + y * zSize + z) % (xSize * ySize * zSize) + (xSize * ySize * zSize)) % (xSize * ySize * zSize)];
+				!getBlock(x + 1, y, z).isTransparent(), !getBlock(x - 1, y, z).isTransparent(), });
 	}
+
+	public boolean[] isNeedHide(int x, int y, int z) { return needHide[((x * ySize * zSize + y * zSize + z) % (xSize * ySize * zSize) + (xSize * ySize * zSize)) % (xSize * ySize * zSize)]; }
 
 	public void setNeedHide(int x, int y, int z, boolean[] r) { needHide[((x * ySize * zSize + y * zSize + z) % (xSize * ySize * zSize) + (xSize * ySize * zSize)) % (xSize * ySize * zSize)] = r; }
 

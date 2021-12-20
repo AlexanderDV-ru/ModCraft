@@ -1,6 +1,7 @@
 package ru.alexanderdv.modcraft;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
@@ -13,8 +14,7 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.util.glu.GLU;
 
 public class Textures {
-	public static final String[] names = new String[23];
-	private HashMap<String, Integer> idMap = new HashMap<String, Integer>();
+	private HashMap<String, Integer> idMap = new HashMap<>();
 
 	public int load(String resourceName) { return load(resourceName, 9728); }
 
@@ -35,7 +35,12 @@ public class Textures {
 			GL11.glTexParameteri(3553, 10241, mode);
 			GL11.glTexParameteri(3553, 10240, mode);
 
-			BufferedImage img = ImageIO.read(this.getClass().getResourceAsStream(resourceName));
+			BufferedImage img;
+			try {
+				img = ImageIO.read(this.getClass().getResourceAsStream("/" + resourceName));
+			} catch (Exception e) {
+				img = ImageIO.read(new File(resourceName));
+			}
 			int w = img.getWidth();
 			int h = img.getHeight();
 
@@ -55,7 +60,7 @@ public class Textures {
 
 			return id;
 		} catch (IOException e) {
-			throw new RuntimeException("!!");
+			throw new RuntimeException("Error when loading texture " + resourceName, e);
 		}
 	}
 }

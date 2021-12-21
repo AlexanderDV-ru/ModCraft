@@ -10,13 +10,14 @@ import javax.swing.JFrame;
 
 import ru.alexanderdv.modcraft.World.GenerationType;
 import ru.alexanderdv.utils.ExceptionsHandler;
+import ru.alexanderdv.utils.MessageSystem.Msgs;
 import ru.alexanderdv.utils.lwjgl.Timed;
 
 public class Main {
-	public static void main(String args[]) { new ModCraft(false).start(); }
+	public static void main(String args[]) { new ModCraft(String.join(" ", args)).start(); }
 
 	public static class ModCraft {
-		public static class Player extends Controller implements Camera {}
+		public static class Player extends Controller implements Camera { public Player(String name) { super(name); } }
 
 		TabWindowsBase windowBase;
 		Textures textures;
@@ -24,47 +25,23 @@ public class Main {
 		Player player;
 		ArrayList<Shader> shaders = new ArrayList<>();
 
-		public ModCraft(boolean displayInFrame) {
+		public ModCraft(String args) {
+			Msgs.last = Msgs.msgs = new Msgs(args = this.getClass().getSimpleName() + " " + args) {};
+			Custom defaults = Custom.defaults = new Custom(args.split(" ")), texturesCustom = new Custom(args.split(" "));
+
 			windowBase = new TabWindowsBase(this.getClass().getSimpleName());
-			windowBase.frame.init(displayInFrame ? new JFrame() : null);
+			windowBase.frame.init(Custom.hasArg("-displayInFrame", args) ? new JFrame() : null);
 			windowBase.display.init(windowBase.frame.window);
 			windowBase.output.init(new JFrame("Output"));
 			windowBase.input.init();
 
-			Block.names.put(0, "  air");
-			Block.names.put(1, "  stone.png");
-			Block.names.put(2, "  grass.png");
-			Block.names.put(3, "  dirt.png");
-			Block.names.put(4, "  cobblestone.png");
-			Block.names.put(5, "  sand.png");
-			Block.names.put(6, "  gravel.png");
-			Block.names.put(7, "  bedrock.png");
-			Block.names.put(8, "  water.png");
-			Block.names.put(9, "  sponge.png");
-			Block.names.put(10, " lava.png");
-			Block.names.put(11, " tnt_top.png");
-			Block.names.put(12, " iron_ore.png");
-			Block.names.put(13, " lapis_ore.png");
-			Block.names.put(14, " emerald_ore.png");
-			Block.names.put(15, " sapling.png");
-			Block.names.put(16, " leaves.png");
-			Block.names.put(17, " planks.png");
-			Block.names.put(18, " wood_side.png");
-			Block.names.put(19, " wood_top.png");
-			Block.names.put(20, " glass.png");
-			Block.names.put(21, " selector.png");
-			Block.names.put(22, " wool.png");
-			Block.names.put(23, " white");
-			textures = new Textures();
-			for (int i = 0; i < Block.names.size(); i++) {
-				if (Block.names.get(i).replace(" ", "").contains(".png"))
-					textures.load("assets/" + windowBase.name + "/textures/" + Block.names.get(i).replace(" ", ""));
-				Block.names.put(i, Block.names.get(i).replace(" ", "").replace(".png", ""));
-			}
+			texturesCustom.loadBlocksWithTexturesTo(textures = new Textures(), Block.names);
 
 			world = new World(16, 6, 16, GenerationType.RANDOM, GenerationType.AIR_ON_TOP);
 
-			player = new Player();
+			for (String name : args.split(" "))
+				if (!name.startsWith("-") && name.length() > 0)
+					(player = new Player(name)).custom = new Custom(defaults.playersS + "/" + name + "/" + defaults.controlsS + defaults.cfgExtS);
 
 			shaders.add(new FlickingShader());
 		}
@@ -132,6 +109,7 @@ public class Main {
 					player.closeEyes();
 					windowBase.print("FPS: " + time.fps() + "\nRotation" + Arrays.toString(player.rotation.coords));
 					windowBase.repaint();
+					return null;
 				});
 			endProgram();
 		}

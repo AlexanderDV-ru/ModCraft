@@ -1,29 +1,41 @@
 package ru.alexanderdv.modcraft;
 
-public class Controller extends POV {
+import ru.alexanderdv.utils.Named;
+
+public class Controller extends POV implements Named {
+	public final String name;
+
+	public Controller(String name) { this.name = name; }
+
+	@Override
+	public String getName() { return this.name; }
+
+	public Custom custom;
 	boolean escape = true, fly = true, ended;
 	protected double[] deltas = { 0, 0, 0 }, rotationsDeltas = { 0, 0 };
 	double jump = 50, gravity = 9.8;
-	double speed = 1, inertia = 1;
-	double sensitivity = 1, kinematics = 1;// TODO 0.5 divide world picture to 2, mind this bug how non strict blocks
+	double speed = 1, inertia = 10;
+	double sensitivity = 1, kinematics = 10;// TODO 0.5 divide world picture to 2, mind this bug how non strict blocks
 
 	public void controls(DisplayTabWindow display, Input input) {
-		double keyboardTune = 1 / 5d, mouseTune = 1 / 15d;
+		double keyboardTune = 1 / 5d, mouseTune = 1 / 10d;
 		double speed = this.speed * keyboardTune, sensitivity = this.sensitivity * mouseTune;
-		if (input.isKeyDown("end"))
+		double inertia = this.inertia * keyboardTune, kinematics = this.kinematics * mouseTune;
+		double gravity = this.inertia * keyboardTune, jump = this.kinematics * mouseTune;
+		if (custom.isControl(input, "jet", "endprogram"))
 			ended = true;
 		while (input.next()) {
-			if (input.isKeyDown("escape")) {
+			if (custom.isControl(input, "switch", "escape")) {
 				input.setCursorPosition(display.getWidth() / 2, display.getHeight() / 2);
 				escape = !escape;
 				input.setGrabbed(!escape);
 			}
 			if (escape)
 				continue;
-			if (input.isKeyDown("f"))
+			if (custom.isControl(input, "switch", "fly"))
 				fly = !fly;
 			if (!fly)
-				if (input.isKeyDown("space"))
+				if (custom.isControl(input, "click", "jump"))
 					deltas[1] += jump;
 		}
 		if (escape)
@@ -38,19 +50,19 @@ public class Controller extends POV {
 		// Also decide between method realistic time simulation or physics, first is
 		// more useful, you need do it only in main timer, but you will restricted by
 		// default updates count.
+		// TODO make better texture system
+		// TODO make BlockId system with texture, color, model and other how parts of
+		// it, and also dynamic coloring
 
-		double za = ((input.isKeyDown("w") ? 1 : 0) - (input.isKeyDown("s") ? 1 : 0));
-		double xa = ((input.isKeyDown("a") ? 1 : 0) - (input.isKeyDown("d") ? 1 : 0));
+		double[] axis = custom.getAxis(input, 4).coords;
 		double sin = Math.sin(Math.toRadians(rotation.coords[1]));
 		double cos = Math.cos(Math.toRadians(rotation.coords[1]));
-		deltas[0] += (xa * cos - za * sin) * speed;
-		deltas[2] += (za * cos + xa * sin) * speed;
-		if (fly) {
-			if (input.isKeyDown("space"))
-				deltas[1] += speed;
-			if (input.isKeyDown("control"))
-				deltas[1] -= speed;
-		} else deltas[1] -= gravity;
+		deltas[0] += (-axis[0] * cos - axis[2] * sin) * speed;
+		deltas[1] += (+axis[1] * +1 - +axis[1] * +-0) * speed * (fly ? 1 : 0);
+		deltas[2] += (+axis[2] * cos - axis[0] * sin) * speed;
+
+		deltas[1] -= gravity * (fly ? 0 : 1);
+		// TODO wind?
 
 		rotationsDeltas[1] += input.getDX() * sensitivity;
 		rotationsDeltas[0] -= input.getDY() * sensitivity;

@@ -41,11 +41,11 @@ public class World {
 
 	boolean loop = true, clamp;
 
-	private int toPosInArrBySettings(int x, int y, int z) { return loop ? MathUtils.loopI(toPosInArr(x, y, z), 0, calcArrSize()) : MathUtils.clampI(toPosInArr(x, y, z), 0, calcArrSize()); }
+	private int toPosInArrByFlags(int x, int y, int z) { return loop ? MathUtils.loopI(toPosInArr(x, y, z), 0, calcArrSize()) : MathUtils.clampI(toPosInArr(x, y, z), 0, calcArrSize()); }
 
-	public void setBlock(int x, int y, int z, int id) { blocks[toPosInArrBySettings(x, y, z)].id = id; }
+	public void setBlock(int x, int y, int z, int id) { blocks[toPosInArrByFlags(x, y, z)].id = id; }
 
-	public Block getBlock(int x, int y, int z) { return blocks[toPosInArrBySettings(x, y, z)]; }
+	public Block getBlock(int x, int y, int z) { return blocks[toPosInArrByFlags(x, y, z)]; }
 
 	public void calcNeedHide(int x, int y, int z) {
 		setNeedHide(x, y, z, getBlock(x, y, z).isMeshed() ? new boolean[6]
@@ -58,7 +58,7 @@ public class World {
 						!getBlock(x + 1, y, z).isTransparent(), !getBlock(x - 1, y, z).isTransparent(), });
 	}
 
-	public boolean[] isNeedHide(int x, int y, int z) { return needHide[toPosInArrBySettings(x, y, z)]; }
+	public boolean[] isNeedHide(int x, int y, int z) { return needHide[toPosInArrByFlags(x, y, z)]; }
 
-	public void setNeedHide(int x, int y, int z, boolean[] r) { needHide[toPosInArrBySettings(x, y, z)] = r; }
+	public void setNeedHide(int x, int y, int z, boolean[] r) { needHide[toPosInArrByFlags(x, y, z)] = r; }
 }

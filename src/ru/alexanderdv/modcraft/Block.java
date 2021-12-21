@@ -2,7 +2,6 @@ package ru.alexanderdv.modcraft;
 
 import static org.lwjgl.opengl.GL11.GL_QUADS;
 import static org.lwjgl.opengl.GL11.glTexCoord2f;
-import static org.lwjgl.opengl.GL11.glVertex3d;
 
 import java.util.HashMap;
 
@@ -11,13 +10,14 @@ import org.lwjgl.util.Renderable;
 import org.lwjgl.util.vector.Vector4f;
 
 import ru.alexanderdv.utils.VectorD;
+import ru.alexanderdv.utils.lwjgl.VerticalNormalised;
 
-public class Block {
+public class Block implements VerticalNormalised {
 	private static int _enum_counter = 0;
 
-	public static interface Side extends Renderable {}
+	public static interface Side extends Renderable, VerticalNormalised {}
 
-	public static enum Side6 implements Side {
+	public static enum Side6 implements Side, VerticalNormalised {
 		TOP(00000 + 0, 1, 0, new double[][] { { 1, 0, 1 }, { 1, 0, 0 }, { 0, 0, 0 }, { 0, 0, 1 } }, new float[][] { { 1, 0 }, { 0, 0 }, { 0, 1 }, { 1, 1 } }),
 		BOTTOM(00 + 0, 0, 0, new double[][] { { 1, 0, 1 }, { 0, 0, 1 }, { 0, 0, 0 }, { 1, 0, 0 } }, new float[][] { { 0, 0 }, { 0, 1 }, { 1, 1 }, { 1, 0 } }),
 		RIGHT(000 + 1, 0, 0, new double[][] { { 0, 0, 1 }, { 0, 0, 0 }, { 0, 1, 0 }, { 0, 1, 1 } }, new float[][] { { 0, 1 }, { 1, 1 }, { 1, 0 }, { 0, 0 } }),
@@ -74,6 +74,8 @@ public class Block {
 	public int[] getTextures() { return new int[] { id }; }
 
 	public Vector4f[] getColors() { return new Vector4f[] { getName().contains("leaves") || getName().contains("grass") ? new Vector4f(0, 1, 0, 1) : new Vector4f(1, 1, 1, 1) }; }
+
+	public boolean isCollidable() { return !isGas() && !isLiquid() && !isVoid() && !isMeshed(); }
 
 	public boolean isTransparent() { return isGas() || isLiquid() || isVoid() || isMeshed() || getName().contains("glass"); }
 

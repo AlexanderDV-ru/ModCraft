@@ -3,9 +3,11 @@ package ru.alexanderdv.modcraft;
 import java.util.Random;
 
 import ru.alexanderdv.modcraft.Block.Side6;
+import ru.alexanderdv.modcraft.PhysicalPOV.Collider;
+import ru.alexanderdv.modcraft.PhysicalPOV.PhysicalEnviroment;
 import ru.alexanderdv.utils.MathUtils;
 
-public class World {
+public class World implements Collider, PhysicalEnviroment {
 	public static interface Generation { Block getBlock(int x, int y, int z, World w); }
 
 	public static enum GenerationType implements Generation {
@@ -15,19 +17,17 @@ public class World {
 		public abstract Block getBlock(int x, int y, int z, World w);
 	}
 
-	int xSize, ySize, zSize;
+	int[] size;
 	Block[] blocks;
 	boolean[][] needHide;
 	int chunkSize = 16;
 
-	private int calcArrSize() { return xSize * ySize * zSize; }
+	private int calcArrSize() { return size[0] * size[1] * size[2]; }
 
-	private int toPosInArr(int x, int y, int z) { return x * ySize * zSize + y * zSize + z; }
+	private int toPosInArr(int x, int y, int z) { return x * size[1] * size[2] + y * size[2] + z; }
 
 	public World(int width, int height, int depth, Generation... generations) {
-		this.xSize = width;
-		this.ySize = height;
-		this.zSize = depth;
+		this.size = new int[] { width, height, depth };
 		blocks = new Block[calcArrSize()];
 		needHide = new boolean[calcArrSize()][Side6.values().length];
 		for (int x = 0; x < width; x++)
@@ -39,7 +39,7 @@ public class World {
 				}
 	}
 
-	boolean loop = true, clamp;
+	boolean loop = true, clamp = false;
 
 	private int toPosInArrByFlags(int x, int y, int z) { return loop ? MathUtils.loopI(toPosInArr(x, y, z), 0, calcArrSize()) : MathUtils.clampI(toPosInArr(x, y, z), 0, calcArrSize()); }
 
@@ -61,4 +61,25 @@ public class World {
 	public boolean[] isNeedHide(int x, int y, int z) { return needHide[toPosInArrByFlags(x, y, z)]; }
 
 	public void setNeedHide(int x, int y, int z, boolean[] r) { needHide[toPosInArrByFlags(x, y, z)] = r; }
+
+	boolean border = true, blocksCollision = true;
+
+	Collider worldCollider = (double[] position) -> {
+		for (int i = 0; i < 3; i++)
+			if (position[i] < -0.5 || position[i] > size[i] - 0.5)
+				return false;
+		return true;
+	}, nonSolidBlocksCollider = (double[] position) -> { return getBlock((int) (position[0] + 0.5), (int) (position[1] + 0.5), (int) (position[2] + 0.5)).isCollidable(); };
+
+	@Override
+	public boolean hasCollisionAt(double[] position) {
+		if (position.length != size.length)
+			return false;
+		return (border ? !worldCollider.hasCollisionAt(position) : false) || (blocksCollision ? nonSolidBlocksCollider.hasCollisionAt(position) : false);
+	}
+
+	double gravity = 9.8;
+
+	@Override
+	public double getGravity() { return gravity; }
 }

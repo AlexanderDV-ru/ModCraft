@@ -1,28 +1,31 @@
 package ru.alexanderdv.modcraft;
 
-import static org.lwjgl.opengl.GL11.glTranslated;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
 import javax.swing.JFrame;
 
+import ru.alexanderdv.modcraft.Controller.UserController;
+import ru.alexanderdv.modcraft.World.Generation;
 import ru.alexanderdv.modcraft.World.GenerationType;
 import ru.alexanderdv.utils.ExceptionsHandler;
+import ru.alexanderdv.utils.MathUtils;
 import ru.alexanderdv.utils.MessageSystem.Msgs;
 import ru.alexanderdv.utils.lwjgl.Timed;
+import ru.alexanderdv.utils.lwjgl.VerticalNormalised;
 
 public class Main {
 	public static void main(String args[]) { new ModCraft(String.join(" ", args)).start(); }
 
-	public static class ModCraft {
-		public static class Player extends Controller implements Camera { public Player(String name) { super(name); } }
+	public static class ModCraft implements VerticalNormalised {
+		public static class Player extends UserController implements Camera { public Player(String name) { super(name); } }
 
 		TabWindowsBase windowBase;
 		Textures textures;
 		World world;
 		Player player;
+		ArrayList<PhysicalPOV> physicals = new ArrayList<>();
 		ArrayList<Shader> shaders = new ArrayList<>();
 
 		public ModCraft(String args) {
@@ -31,24 +34,50 @@ public class Main {
 
 			windowBase = new TabWindowsBase(this.getClass().getSimpleName());
 			windowBase.frame.init(Custom.hasArg("-displayInFrame", args) ? new JFrame() : null);
-			windowBase.display.init(windowBase.frame.window);
+			windowBase.display.init(windowBase.frame.window);// TODO If rendering in other thread, it's also
 			windowBase.output.init(new JFrame("Output"));
 			windowBase.input.init();
 
 			texturesCustom.loadBlocksWithTexturesTo(textures = new Textures(), Block.names);
 
-			world = new World(16, 6, 16, GenerationType.RANDOM, GenerationType.AIR_ON_TOP);
+			Custom worldCustom = new Custom(args.split(" "));
+			String[] worldCfgLines = worldCustom.readCfgCustom(worldCustom.configsS + "/world" + worldCustom.cfgExtS);
+			Generation[] generations = new Generation[worldCfgLines.length - 5];
+			for (int i = 0; i < generations.length; i++)
+				try {
+					generations[i] = GenerationType.valueOf(worldCfgLines[i + 5].toUpperCase());
+				} catch (Exception e) {
+					final int o = i;
+					generations[i] = new Generation() {
+						@Override
+						public Block getBlock(int x, int y, int z, World w) {
+							if (y < MathUtils.parseI(worldCfgLines[o + 5].split(":")[0]))
+								return new Block(x, y, z, w, MathUtils.parseI(worldCfgLines[o + 5].split(":")[1]));
+							else return w.getBlock(x, y, z);
+						}
+
+					};
+				}
+			world = new World(MathUtils.parseI(worldCfgLines[0]), MathUtils.parseI(worldCfgLines[1]), MathUtils.parseI(worldCfgLines[2]), generations);
+			world.border = worldCfgLines[3].toLowerCase().contains("true");
+			world.blocksCollision = worldCfgLines[4].toLowerCase().contains("true");
 
 			for (String name : args.split(" "))
-				if (!name.startsWith("-") && name.length() > 0)
+				if (!name.startsWith("-") && name.length() > 0) {
 					(player = new Player(name)).custom = new Custom(defaults.playersS + "/" + name + "/" + defaults.controlsS + defaults.cfgExtS);
+					player.display = windowBase.display;
+					player.input = windowBase.input;
+					player.coords = new double[] { world.size[0] / 2, world.size[1] - 1, world.size[2] / 2 };
+					player.rotation.coords[0] = 90;
+					physicals.add(player);
+				}
 
 			shaders.add(new FlickingShader());
 		}
 
 		public interface Shader extends Timed {}
 
-		public static class FlickingShader implements Shader {
+		public static class FlickingShader implements Shader, VerticalNormalised {
 			double overlayTexturesFlickingModifier = 1, currentFlickingOffset = 0;
 			Random random = new Random();
 
@@ -57,7 +86,8 @@ public class Main {
 
 			@Override
 			public void update() { currentFlickingOffset = (random.nextDouble() - 0.5d) / 1001d * overlayTexturesFlickingModifier; }
-		}
+		}// TODO 0.5 kinematics divide world picture to 2, mind this bug how non strict
+			// blocks
 
 		public static class Time {
 			private double nano = 1, resolutionModifier = 1d, ups = 50, lastRender = getNow(), lastUpdate = getNow(), needUpdateCount = 0, scale = 1, start = getNow();
@@ -90,7 +120,15 @@ public class Main {
 			ExceptionsHandler handler = new ExceptionsHandler();
 			while (!stopped())
 				handler.tryPrint(() -> {
-					time.doNeedUpdateCount(() -> player.controls(windowBase.display, windowBase.input), () -> {
+					time.doNeedUpdateCount(() -> {
+						player.controls();
+						time.setScale(player.escape ? 0 : 1);
+						for (int i = 0; i < time.getScale(); i++)
+							for (PhysicalPOV physical : physicals) {
+								physical.applyPhysicalEnviroment(world);
+								physical.applyMotion(world);
+							}
+					}, () -> {
 						player.doForEachSeenBlock((x, y, z) -> world.calcNeedHide(x, y, z)/* fps x2 */);
 						shaders.forEach((shader) -> shader.update());
 					});

@@ -22,6 +22,8 @@ public class Input implements Destroyable {
 
 	final KeysList stateKeys = new KeysList(), keys = new KeysList();
 
+	double keyboardTune = 1 / 5d, mouseTune = 1 / 10d;
+
 	public void init() {
 		try {
 			Keyboard.create();

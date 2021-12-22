@@ -27,7 +27,6 @@ public class Controller extends PhysicalPOV implements Named {
 	public static class UserController extends Controller {
 		public UserController(String name) { super(name); }
 
-		DisplayShell display;
 		DisplayInput input;
 
 		public double getInertia() { return inertia; }
@@ -42,7 +41,6 @@ public class Controller extends PhysicalPOV implements Named {
 				ended = true;
 			for (Key input : this.input.nextKeys)
 				if (custom.getInputValue(input, "switch", "escape").coords[0] == 1) {
-					this.input.setCursorPosition(display.getWidth() / 2, display.getHeight() / 2);
 					escape = !escape;
 					this.input.setGrabbed(!escape);
 				}

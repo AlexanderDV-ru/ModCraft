@@ -13,7 +13,7 @@ import ru.alexanderdv.modcraft.Input.DisplayInput;
 
 public class FramesManager implements Destroyable {
 	public static class FrameShell implements Repaintable, Destroyable {
-		private final ConcurrentSkipListMap<Integer, Object> messages = new ConcurrentSkipListMap<>();
+		protected final ConcurrentSkipListMap<Integer, Object> messages = new ConcurrentSkipListMap<>();
 
 		java.awt.Frame frame;
 
@@ -22,7 +22,7 @@ public class FramesManager implements Destroyable {
 		public FrameShell(String parentName) { this.parentName = parentName; }
 
 		public void init(java.awt.Frame frame) {
-			if (frame != null)
+			if (frame != null && this.frame == null)
 				try {
 					this.frame = frame;
 					frame.setTitle(parentName + (!frame.getTitle().equals("") ? ": " + frame.getTitle() : ""));

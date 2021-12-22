@@ -48,6 +48,8 @@ public interface Input extends Destroyable {
 	}
 
 	public static class DisplayInput implements Input {
+		public DisplayShell display;
+
 		public static class KeysList extends ArrayList<Key> {
 			private static final long serialVersionUID = 4662086084680411839L;
 
@@ -62,13 +64,14 @@ public interface Input extends Destroyable {
 
 		final KeysList keys = new KeysList(), nextKeys = new KeysList();
 
-		public void init() {
-			try {
-				Keyboard.create();
-				Mouse.create();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+		public void init(DisplayShell display) {
+			if ((this.display = display) != null)
+				try {
+					Keyboard.create();
+					Mouse.create();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 		}
 
 		public void update() {
@@ -87,7 +90,10 @@ public interface Input extends Destroyable {
 
 		public void setCursorPosition(int x, int y) { Mouse.setCursorPosition(x, y); }
 
-		public void setGrabbed(boolean grabbed) { Mouse.setGrabbed(grabbed); }
+		public void setGrabbed(boolean grabbed) {
+			Mouse.setGrabbed(grabbed);
+			setCursorPosition(display.getWidth() / 2, display.getHeight() / 2);
+		}
 
 		public float getDX() { return Mouse.getDX(); }
 

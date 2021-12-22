@@ -16,8 +16,8 @@ import static org.lwjgl.opengl.GL11.glMatrixMode;
 import static org.lwjgl.opengl.GL11.glPopMatrix;
 import static org.lwjgl.opengl.GL11.glPushMatrix;
 import static org.lwjgl.opengl.GL11.glRotated;
-
-import org.lwjgl.util.glu.GLU;
+import static org.lwjgl.opengl.GL11.glViewport;
+import static org.lwjgl.util.glu.GLU.gluPerspective;
 
 import ru.alexanderdv.utils.MathUtils;
 import ru.alexanderdv.utils.lwjgl.VerticalNormalised;
@@ -28,7 +28,8 @@ public interface Camera extends VerticalNormalised {
 		glPushMatrix();
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
-		GLU.gluPerspective(70, (float) width / (float) height, 0.03f, (float) visionDistance);
+		gluPerspective(70, (float) width / (float) height, 0.03f, (float) visionDistance);
+		glViewport(0, 0, (int) width, (int) height);
 		glMatrixMode(GL_MODELVIEW);
 		glEnable(GL_DEPTH_TEST);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

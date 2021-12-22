@@ -35,7 +35,7 @@ public class Main {
 			frames.displayFrame.init(Custom.hasArg("-displayInFrame", args) ? new JFrame() : null);
 			frames.display.init(frames.displayFrame.frame);// TODO If rendering in other thread, it's also
 			frames.debugFrame.init(new JFrame("F3"));
-			frames.input.init();
+			frames.input.init(frames.display);
 
 			texturesCustom.loadBlocksWithTexturesTo(textures = new Textures(), Block.names);
 
@@ -64,7 +64,6 @@ public class Main {
 			for (String name : args.split(" "))
 				if (!name.startsWith("-") && name.length() > 0) {
 					(player = new Player(name)).custom = new Custom(defaults.playersS + "/" + name + "/" + defaults.controlsS + defaults.cfgExtS);
-					player.display = frames.display;
 					player.input = frames.input;
 					player.position.coords = new double[] { world.size[0] / 2, world.size[1] - 1, world.size[2] / 2 };
 					player.rotation.coords[0] = 90;
@@ -166,6 +165,7 @@ public class Main {
 					});
 					player.closeEyes();
 					frames.debugFrame.print(getF3());
+					frames.displayFrame.print(getF3());
 					frames.update();
 					return null;
 				});

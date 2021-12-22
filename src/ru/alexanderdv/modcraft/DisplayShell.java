@@ -6,11 +6,11 @@ import java.awt.Graphics;
 
 import org.lwjgl.opengl.Display;
 
-import ru.alexanderdv.modcraft.TabWindowsBase.TabWindow;
+import ru.alexanderdv.modcraft.FramesManager.FrameShell;
 
-public class DisplayTabWindow extends TabWindow {
+public class DisplayShell extends FrameShell {
 
-	public DisplayTabWindow(String parentName) { super(parentName); }
+	public DisplayShell(String parentName) { super(parentName); }
 
 	public void init(java.awt.Frame window) {
 		super.init(window);

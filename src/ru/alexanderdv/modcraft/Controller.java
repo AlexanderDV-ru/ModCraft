@@ -1,5 +1,7 @@
 package ru.alexanderdv.modcraft;
 
+import ru.alexanderdv.modcraft.Input.DisplayInput;
+import ru.alexanderdv.modcraft.Input.Key;
 import ru.alexanderdv.utils.Named;
 
 public class Controller extends PhysicalPOV implements Named {
@@ -10,58 +12,53 @@ public class Controller extends PhysicalPOV implements Named {
 
 	public Controller(String name) { this.name = name; }
 
-	public void applyAdding(double[] velocity, double[] adding, double speed) {
-		for (int i = 0; i < adding.length; i++) {
-			velocity[i] += adding[i] * speed;
-			adding[i] = 0;
-		}
-	}
+	public String getF3() { return "Name: " + name + "\n" + super.getF3(); }
 
 	protected double jump = 20, sprint = 3;
 	protected double speed = 1, sensitivity = 1;
 	protected boolean flying = true, sprinting;
 
 	@Override
-	public void applyPhysicalEnviroment(PhysicalEnviroment enviroment) {
+	public void physics(PhysicalEnviroment enviroment) {
 		if (!flying)
-			super.applyPhysicalEnviroment(enviroment);
+			super.physics(enviroment);
 	}
 
 	public static class UserController extends Controller {
 		public UserController(String name) { super(name); }
 
-		DisplayTabWindow display;
-		Input input;
+		DisplayShell display;
+		DisplayInput input;
 
-		public double getInertia() { return inertia * input.keyboardTune; }
+		public double getInertia() { return inertia; }
 
-		public double getKinematics() { return kinematics * input.mouseTune; }
+		public double getKinematics() { return kinematics; }
 
 		public Custom custom;
 		boolean escape = true, ended;
 
 		public void controls() {
-			if (custom.isControl(input, "jet", "endprogram"))
+			if (custom.getInputValue(input, "after", "endprogram").coords[0] == 1)
 				ended = true;
-			while (input.next()) {// TODO make full interception of Keyboard by input, change to input.getNexts()
-				if (custom.isControl(input, "switch", "escape")) {
-					input.setCursorPosition(display.getWidth() / 2, display.getHeight() / 2);
+			for (Key input : this.input.nextKeys)
+				if (custom.getInputValue(input, "switch", "escape").coords[0] == 1) {
+					this.input.setCursorPosition(display.getWidth() / 2, display.getHeight() / 2);
 					escape = !escape;
-					input.setGrabbed(!escape);
+					this.input.setGrabbed(!escape);
 				}
-				if (isInMenu())
-					continue;
-				if (custom.isControl(input, "switch", "fly"))
-					flying = !flying;
-				if (custom.isControl(input, "switch", "spectator||nocollision"))// TODO fix bug in comments in cfg regex, it can't work with // and # comments
-					preventMotionOnCollision = clearVelocityOnCollision = !clearVelocityOnCollision;
-
-				if (custom.isControl(input, "click", "sneak"))
-					velocityAdding[1] += 1 * (!flying ? 1 : 0);
-				applyAdding(velocity, velocityAdding, jump * input.keyboardTune);
-			}
 			if (isInMenu())
 				return;
+			for (Key input : this.input.nextKeys) {
+				if (custom.getInputValue(input, "switch", "fly").coords[0] == 1) {
+					flying = !flying;
+					notInGroundTime = 0;
+				}
+				if (custom.getInputValue(input, "switch", "spectator").coords[0] == 1 || custom.getInputValue(input, "switch", "nocollision").coords[0] == 1)
+					collision.disabled = !collision.disabled;
+
+				if (custom.getInputValue(input, "click", "sneak").coords[0] == 1)
+					velocityIncreasing[1] += jump * (!flying ? 1 : 0);
+			}
 			// TODO change all physical system: add update adding to delta and in the end
 			// multiply it to speed or sensitivity, change delta to velocity
 			// TODO add shift sprinting
@@ -76,22 +73,20 @@ public class Controller extends PhysicalPOV implements Named {
 			// TODO make BlockId system with texture, color, model and other how parts of
 			// it, and also dynamic coloring
 
-			sprinting = custom.isControl(input, "when", "sprint");// it doesn't work if user have old custom witout shift
+			sprinting = custom.getInputValue(input, "when", "sprint").coords[0] == 1;// it doesn't work if user have old custom witout shift
 			// TODO make stacking loading of all files, not only top?
 
-			double[] axis = custom.getAxis(input, 4).coords;
+			double[] axes = custom.getInputValue(input, "when", "4_axis").coords;
 			double sin = Math.sin(Math.toRadians(rotation.coords[1]));
+			double coef = 1;
 			double cos = Math.cos(Math.toRadians(rotation.coords[1]));
 
-			velocityAdding[0] += (-axis[0] * cos - axis[2] * sin);
-			velocityAdding[1] += (+axis[1] * +1 - +axis[1] * +-0) * (flying ? 1 : 0);
-			velocityAdding[2] += (+axis[2] * cos - axis[0] * sin);
+			velocityIncreasing[0] += (-axes[0] * cos - axes[2] * sin) * this.speed * (sprinting ? sprint : 1);
+			velocityIncreasing[1] += (+axes[1] * (flying ? coef : 0)) * this.speed * (sprinting ? sprint : 1);
+			velocityIncreasing[2] += (+axes[2] * cos - axes[0] * sin) * this.speed * (sprinting ? sprint : 1);
 
-			volutionAdding[1] += input.getDX();
-			volutionAdding[0] -= input.getDY();
-
-			applyAdding(velocity, velocityAdding, this.speed * (sprinting ? sprint : 1) * input.keyboardTune);
-			applyAdding(volution, volutionAdding, this.sensitivity * input.mouseTune);
+			volutionIncreasing[0] += input.getVolutionX() * this.sensitivity;
+			volutionIncreasing[1] += input.getVolutionY() * this.sensitivity;
 		}
 
 		public boolean isInMenu() { return escape; }

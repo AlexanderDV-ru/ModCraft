@@ -7,73 +7,99 @@ import javax.security.auth.Destroyable;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
-public class Input implements Destroyable {
-	public static class KeysList extends ArrayList<String> {
-		private static final long serialVersionUID = 4662086084680411839L;
+public interface Input extends Destroyable {
 
-		public String remove(int index) {
-			try {
-				return super.remove(index);
-			} catch (Exception e) {
-				return null;
-			}
-		}
-	}
+	public boolean isKeyDown(int id);
 
-	final KeysList stateKeys = new KeysList(), keys = new KeysList();
-
-	double keyboardTune = 1 / 5d, mouseTune = 1 / 10d;
-
-	public void init() {
+	public default boolean isKeyDown(String key) {
 		try {
-			Keyboard.create();
-			Mouse.create();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	public void update() {
-		Mouse.updateCursor();
-		while (Keyboard.next())
-			if (Keyboard.getEventKeyState())
-				stateKeys.add(Keyboard.getKeyName(Keyboard.getEventKey()));
-		for (int id = 0; id < 128; id++)
-			if (Keyboard.isKeyDown(id))
-				keys.add(Keyboard.getKeyName(id));
-	}
-
-	public void destroy() {
-		Mouse.destroy();
-		Keyboard.destroy();
-	}
-
-	public void setCursorPosition(int x, int y) { Mouse.setCursorPosition(x, y); }
-
-	public void setGrabbed(boolean grabbed) { Mouse.setGrabbed(grabbed); }
-
-	public float getDX() { return Mouse.getDX(); }
-
-	public float getDY() { return Mouse.getDY(); }
-
-	public boolean next() { return Keyboard.next(); }
-
-	public boolean isKeyDown(Object key) {
-		try {
-			return Keyboard.isKeyDown((int) Double.parseDouble(key + ""));
+			return isKeyDown((int) Double.parseDouble(key + ""));
 		} catch (Exception e) {
 			key = (key + "").toLowerCase().replaceAll("key[_]*", "").replace("ctrl", "control").replace("alt", "menu").replace("win", "meta").toUpperCase();
 			if (key.equals("ENTER"))
-				return Keyboard.isKeyDown(Keyboard.KEY_NUMPADENTER) || Keyboard.isKeyDown(Keyboard.KEY_RETURN);
+				return isKeyDown(Keyboard.KEY_NUMPADENTER) || isKeyDown(Keyboard.KEY_RETURN);
 			if (key.equals("CONTROL"))
-				return Keyboard.isKeyDown(Keyboard.KEY_LCONTROL) || Keyboard.isKeyDown(Keyboard.KEY_RCONTROL);
+				return isKeyDown(Keyboard.KEY_LCONTROL) || isKeyDown(Keyboard.KEY_RCONTROL);
 			if (key.equals("MENU"))
-				return Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU);
+				return isKeyDown(Keyboard.KEY_LMENU) || isKeyDown(Keyboard.KEY_RMENU);
 			if (key.equals("SHIFT"))
-				return Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
+				return isKeyDown(Keyboard.KEY_LSHIFT) || isKeyDown(Keyboard.KEY_RSHIFT);
 			if (key.equals("META"))
-				return Keyboard.isKeyDown(Keyboard.KEY_LMETA) || Keyboard.isKeyDown(Keyboard.KEY_RMETA);
-			return Keyboard.isKeyDown(Keyboard.getKeyIndex(key + ""));
+				return isKeyDown(Keyboard.KEY_LMETA) || isKeyDown(Keyboard.KEY_RMETA);
+			return isKeyDown(Keyboard.getKeyIndex(key + ""));
 		}
+	}
+
+	public static class Key implements Input {
+		public int id;
+		public boolean downed;
+
+		public Key(int id, boolean downed) {
+			super();
+			this.id = id;
+			this.downed = downed;
+		}
+
+		public Key() { this(Keyboard.getEventKey(), Keyboard.isKeyDown(Keyboard.getEventKey())); }
+
+		@Override
+		public boolean isKeyDown(int id) { return this.id == id && downed; }
+
+	}
+
+	public static class DisplayInput implements Input {
+		public static class KeysList extends ArrayList<Key> {
+			private static final long serialVersionUID = 4662086084680411839L;
+
+			public Key remove(int index) {
+				try {
+					return super.remove(index);
+				} catch (Exception e) {
+					return null;
+				}
+			}
+		}
+
+		final KeysList keys = new KeysList(), nextKeys = new KeysList();
+
+		public void init() {
+			try {
+				Keyboard.create();
+				Mouse.create();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
+		public void update() {
+			Mouse.updateCursor();
+			while (Keyboard.next())
+				nextKeys.add(new Key());
+			for (int id = 0; id < 128; id++)
+				if (Keyboard.isKeyDown(id))
+					keys.add(new Key(id, true));
+		}
+
+		public void destroy() {
+			Mouse.destroy();
+			Keyboard.destroy();
+		}
+
+		public void setCursorPosition(int x, int y) { Mouse.setCursorPosition(x, y); }
+
+		public void setGrabbed(boolean grabbed) { Mouse.setGrabbed(grabbed); }
+
+		public float getDX() { return Mouse.getDX(); }
+
+		public float getDY() { return Mouse.getDY(); }
+
+		public float getVolutionX() { return -getDY(); }
+
+		public float getVolutionY() { return getDX(); }
+
+		public Key next() { return nextKeys.remove(0); }
+
+		@Override
+		public boolean isKeyDown(int id) { return Keyboard.isKeyDown(id); }
 	}
 }

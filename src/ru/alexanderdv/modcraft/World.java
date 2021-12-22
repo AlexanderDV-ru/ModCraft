@@ -7,7 +7,7 @@ import ru.alexanderdv.modcraft.PhysicalPOV.Collider;
 import ru.alexanderdv.modcraft.PhysicalPOV.PhysicalEnviroment;
 import ru.alexanderdv.utils.MathUtils;
 
-public class World implements Collider, PhysicalEnviroment {
+public class World {
 	public static interface Generation { Block getBlock(int x, int y, int z, World w); }
 
 	public static enum GenerationType implements Generation {
@@ -71,15 +71,19 @@ public class World implements Collider, PhysicalEnviroment {
 		return true;
 	}, nonSolidBlocksCollider = (double[] position) -> { return getBlock((int) (position[0] + 0.5), (int) (position[1] + 0.5), (int) (position[2] + 0.5)).isCollidable(); };
 
-	@Override
-	public boolean hasCollisionAt(double[] position) {
-		if (position.length != size.length)
-			return false;
-		return (border ? !worldCollider.hasCollisionAt(position) : false) || (blocksCollision ? nonSolidBlocksCollider.hasCollisionAt(position) : false);
-	}
+	Collider collider = new Collider() {
+		@Override
+		public boolean hasCollisionAt(double[] position) {
+			if (position.length != size.length)
+				return false;
+			return (border ? !worldCollider.hasCollisionAt(position) : false) || (blocksCollision ? nonSolidBlocksCollider.hasCollisionAt(position) : false);
+		}
+	};
 
-	double gravity = 9.8;
+	PhysicalEnviroment enviroment = new PhysicalEnviroment() {
+		double gravity = 9.8;
 
-	@Override
-	public double getGravity() { return gravity; }
+		@Override
+		public double getGravity() { return gravity; }
+	};
 }

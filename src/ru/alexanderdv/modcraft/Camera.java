@@ -39,9 +39,9 @@ public interface Camera extends VerticalNormalised {
 	}
 
 	public default void pointOfVision(POV p) {
-		glRotated(p.rotation.coords[0] = MathUtils.loopD(p.rotation.coords[0], 0, 360), 1, 0, 0);
-		glRotated(p.rotation.coords[1] = MathUtils.loopD(p.rotation.coords[1], 0, 360), 0, 1, 0);
-		glTranslated(-p.coords[0], -p.coords[1], -p.coords[2]);
+		glRotated(p.rotation.coords[0] = MathUtils.loopD(p.rotation.getX(), 0, 360), 1, 0, 0);
+		glRotated(p.rotation.coords[1] = MathUtils.loopD(p.rotation.getY(), 0, 360), 0, 1, 0);
+		glTranslated(-p.position.getX(), -p.position.getY(), -p.position.getZ());
 	}
 
 	public default void closeEyes() { glPopMatrix(); }

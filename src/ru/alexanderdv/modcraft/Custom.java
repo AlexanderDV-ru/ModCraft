@@ -12,12 +12,13 @@ import java.util.HashMap;
 
 import javax.imageio.ImageIO;
 
+import ru.alexanderdv.utils.MathUtils;
 import ru.alexanderdv.utils.MessageSystem.Msgs;
 import ru.alexanderdv.utils.VectorD;
 
 public class Custom {
 	public static Custom defaults;
-	public String rawReplaceR = "([ \"])|([/][*][^/]*[*][/])|(([/][/]|[#])[^\n]*)", newElementS = "\n", orS = "||", typeS = "_";
+	public String rawReplaceR = "([ \"])|([/][*][^/]*[*][/])|(([/][/]|[#])[^\n]*)", newElementS = "\n", orS = "||", typeS = "_", setS = ":";
 	public HashMap<String, String> controls = new HashMap<>();
 	public String assetsS = "assets", playersS = "players", customS = "custom", texturesS = "textures", configsS = "configs", controlsS = "controls", cfgExtS = ".cfg", textureExtS = ".png";
 	public String assetsPath, customPath = customS + "/";
@@ -33,6 +34,7 @@ public class Custom {
 				newElementS = unshieldSpecial(lines[1]);
 				orS = lines[2];
 				typeS = lines[3];
+				setS = lines[4];
 			} catch (Exception e) {
 				Msgs.last.debug(e);
 			}
@@ -53,29 +55,33 @@ public class Custom {
 		return input.isKeyDown(key);
 	}
 
-	public boolean isControl(Input input, String type, String control) {
-		for (String aliase : orSplit(control))
-			if (isKeyDown(input, controls.get(aliase + typeS + type)))
-				return true;
-		for (String aliase : orSplit(control))
-			if (isKeyDown(input, controls.get(aliase)))
-				return true;
-		return false;
-	}
-
-	public VectorD getAxis(Input input, int size) {
-		VectorD axis = new VectorD(size);
-		for (int i = 0; i < size; i++) {
-			axis.coords[i] += isControl(input, "when", "axis" + i + "+" + (i < 5 ? orS + "axis" + "xyzwt".split("")[i] + "+" : "") + (i < 3 ? orS + "right,up,forward".split(",")[i] : "")) ? 1 : 0;
-			axis.coords[i] -= isControl(input, "when", "axis" + i + "-" + (i < 5 ? orS + "axis" + "xyzwt".split("")[i] + "-" : "") + (i < 3 ? orS + "left,down,back".split(",")[i] : "")) ? 1 : 0;
+	public VectorD getInputValue(Input input, String type, String control) {
+		if (control.contains("_axis")) {
+			VectorD a = new VectorD(MathUtils.parseI(control.split("_")[0]));
+			for (int i = 0; i < a.size(); i++) {
+				a.coords[i] += getInputValue(input, type, "axis" + i + "+" + (i < 5 ? orS + "axis" + "xyzwt".charAt(i) + "+" : "") + (i < 3 ? orS + "right,up,forward".split(",")[i] : "")).coords[0];
+				a.coords[i] -= getInputValue(input, type, "axis" + i + "-" + (i < 5 ? orS + "axis" + "xyzwt".charAt(i) + "-" : "") + (i < 3 ? orS + "left,down,back".split(",")[i] : "")).coords[0];
+			}
+			return a;
 		}
-		return axis;
+		VectorD value = new VectorD(0d);
+		for (String aliase : orSplit(control))
+			if (controls.get(aliase + typeS + type) != null) {
+				if (value.coords[0] == 0)
+					value.coords[0] = -1d;
+				if (isKeyDown(input, controls.get(aliase + typeS + type)))
+					value.coords[0] = 1d;
+			}
+//		for (String aliase : orSplit(control))
+//			if (isKeyDown(input, controls.get(aliase)))
+//				return new VectorD(1d);
+		return value;
 	}
 
 	public Custom(String path) {
 		this(defaults.args);
 		for (String line : readCfgCustom(path))
-			controls.put(line.split(":")[0], line.split(":")[1]);
+			controls.put(line.split(setS)[0], line.split(setS)[1]);
 	}
 
 	// Args

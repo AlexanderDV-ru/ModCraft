@@ -12,7 +12,6 @@ import ru.alexanderdv.modcraft.Input.DisplayInput;
 import ru.alexanderdv.modcraft.Input.Key;
 import ru.alexanderdv.utils.Named;
 import ru.alexanderdv.utils.VectorD;
-import ru.alexanderdv.utils.MessageSystem.Msgs;
 import ru.alexanderdv.utils.lwjgl.VerticalNormalised;
 
 public class Controller extends PhysicalPOV implements Named, VerticalNormalised {
@@ -67,7 +66,6 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 
 		public void selector(World world, double ticksPerSecond, boolean renderMode) {
 			glColor4f(0, 0, 0, 1);
-			Msgs.last.debug(breakTime);
 			for (int m = 0; m < blockBreakingDistance; m++) {
 				double x = position.getX() + getLookDir().getX() * m;
 				double y = position.getY() + getLookDir().getY() * m + 0.05;

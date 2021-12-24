@@ -2,9 +2,11 @@ package ru.alexanderdv.modcraft;
 
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -12,6 +14,7 @@ import java.util.HashMap;
 
 import javax.imageio.ImageIO;
 
+import ru.alexanderdv.utils.ExceptionsHandler;
 import ru.alexanderdv.utils.MathUtils;
 import ru.alexanderdv.utils.MessageSystem.Msgs;
 import ru.alexanderdv.utils.VectorD;
@@ -23,7 +26,8 @@ public class Config<Type> extends HashMap<String, Type> {
 
 	public String rawReplaceR = "([ \"])|([/][*][^/]*[*][/])|(([/][/]|[#])[^\n]*)", newElementS = "\n", orS = "||", typeS = "_", setS = ":";
 	public String assetsS = "assets", playersS = "players", configS = "config", texturesS = "textures", configsS = "configs", controlsS = "controls", cfgExtS = ".cfg", textureExtS = ".png";
-	public String assetsPath, configPath = configS + "/";
+	public String savesS = "saves";
+	public String assetsPath, configPath = configS + "/", savesPath = savesS + "/";
 	public final String[] args;
 
 	public Config(String[] args) {
@@ -37,9 +41,7 @@ public class Config<Type> extends HashMap<String, Type> {
 				orS = lines[2];
 				typeS = lines[3];
 				setS = lines[4];
-			} catch (Exception e) {
-				Msgs.last.debug(e);
-			}
+			} catch (Exception e) {}
 	}
 
 	public String shieldSpecial(String string) { return "[" + String.join("][", orS.split("")) + "]"; }
@@ -66,7 +68,7 @@ public class Config<Type> extends HashMap<String, Type> {
 
 	static Charset defaultCharset = Charset.forName("UTF-8");
 
-	public InputStream getStream(String path) {
+	public InputStream getInputStream(String path) {
 		try {
 			return Files.newInputStream(Paths.get(new File(path).getAbsolutePath()));
 		} catch (Exception e) {
@@ -80,17 +82,25 @@ public class Config<Type> extends HashMap<String, Type> {
 		}
 	}
 
-	public InputStream getConfigStream(String path) {
+	public InputStream getConfigInputStream(String path) {
 		try {
-			return getStream(configPath + path);
-		} catch (Exception e3) {
+			return getInputStream(configPath + path);
+		} catch (Exception e) {
 			try {
-				return getStream(assetsPath + path);
-			} catch (Exception e) {
+				return getInputStream(assetsPath + path);
+			} catch (Exception e1) {
 				try {
-					return getStream(assetsPath + configsS + "/" + path.split("/")[path.split("/").length - 1]);
+					return getInputStream(assetsPath + configsS + "/" + path.split("/")[path.split("/").length - 1]);
 				} catch (Exception e2) {
-					throw new RuntimeException("Error with reading from " + path, e3.getCause());
+					try {
+						return getInputStream(savesPath + path);
+					} catch (Exception e4) {
+						try {
+							return getInputStream(path);
+						} catch (Exception e5) {
+							throw new RuntimeException("Error with reading from " + path, e.getCause());
+						}
+					}
 				}
 			}
 		}
@@ -98,7 +108,7 @@ public class Config<Type> extends HashMap<String, Type> {
 
 	public BufferedImage readConfigImage(String path) {
 		try {
-			return ImageIO.read(getConfigStream(path));
+			return ImageIO.read(getConfigInputStream(path));
 		} catch (Exception e2) {
 			throw new RuntimeException("Error with reading from " + path, e2);
 		}
@@ -106,13 +116,27 @@ public class Config<Type> extends HashMap<String, Type> {
 
 	public String readConfigText(String path) {
 		try {
-			BufferedReader reader = new BufferedReader(new InputStreamReader(getConfigStream(path), defaultCharset));
+			BufferedReader reader = new BufferedReader(new InputStreamReader(getConfigInputStream(path), defaultCharset));
 			String lines = "";
 			for (String line; (line = reader.readLine()) != null;)
 				lines += line + "\n";
+			reader.close();
 			return lines;
 		} catch (Exception e2) {
 			throw new RuntimeException("Error with reading from " + path, e2);
+		}
+	}
+
+	public void saveConfigText(String path, String text) {
+		try {
+			File f = new File(savesPath + path);
+			ExceptionsHandler.tryCatchVoid(() -> f.getParentFile().mkdirs());
+			ExceptionsHandler.tryCatchVoid(() -> f.createNewFile());
+			BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(Paths.get(f.getAbsolutePath())), defaultCharset));
+			writer.write(text);
+			writer.close();
+		} catch (Exception e2) {
+			throw new RuntimeException("Error with writing to " + savesPath + path, e2);
 		}
 	}
 

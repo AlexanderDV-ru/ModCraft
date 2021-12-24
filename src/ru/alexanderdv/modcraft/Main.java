@@ -40,6 +40,65 @@ public class Main {
 
 			new SConfig(defaults.configsS + "/" + defaults.texturesS + defaults.cfgExtS).apply(textures = new Textures(), Block.names);
 
+			try {
+				world = loadWorld("world.txt");
+			} catch (Exception e) {
+				Msgs.last.debug(e);
+				world = generateWorld(args);
+			}
+
+			for (String name : args.split(" "))
+				if (!name.startsWith("-") && name.length() > 0) {
+					(player = new Player(name)).controls = new SConfig(defaults.playersS + "/" + name + "/" + defaults.controlsS + defaults.cfgExtS);
+					player.input = frames.input;
+					player.position.coords = new double[] { world.size[0] / 2, world.size[1] - 1, world.size[2] / 2 };
+					player.rotation.coords[0] = 90;
+					physicals.add(player);
+				}
+
+			shaders.add(new FlickingShader());
+		}
+
+		String[] sp = { "\n", ";", "," };
+
+		public World loadWorld(String path) {
+			String saveTxt = new SConfig(path).readConfigText(Config.defaults.savesPath + path);
+			String[][][] saveIds = new String[saveTxt.split(sp[0]).length][saveTxt.split(sp[0])[0].split(sp[1]).length][saveTxt.split(sp[0])[0].split(sp[1])[0].split(sp[2]).length];
+			for (int x = 0; x < saveTxt.split(sp[0]).length; x++)
+				if (saveTxt.split(sp[0])[x] != null && !saveTxt.split(sp[0])[x].equals(""))
+					for (int y = 0; y < saveTxt.split(sp[0])[x].split(sp[1]).length; y++)
+						if (saveTxt.split(sp[0])[x].split(sp[1])[y] != null && !saveTxt.split(sp[0])[x].split(sp[1])[y].equals(""))
+							try {
+								saveIds[x][y] = saveTxt.split(sp[0])[x].split(sp[1])[y].split(sp[2]);
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+			if (saveIds.length < 2 || saveIds[0].length < 2 || saveIds[0][0].length < 2)
+				throw new RuntimeException("Zero world size");
+			World loadedWorld = new World(saveIds.length, saveIds[0].length, saveIds[0][0].length);
+			for (int x = 0; x < saveIds.length; x++)
+				for (int y = 0; y < saveIds[x].length; y++)
+					for (int z = 0; z < saveIds[x][y].length; z++)
+						try {
+							loadedWorld.setBlock(x, y, z, MathUtils.parseI(saveIds[x][y][z]));
+						} catch (Exception e) {}
+			return loadedWorld;
+		}
+
+		public void saveWorld(String path) {
+			Config<String> cfg = null;
+			try {
+				cfg = new Config<String>("".split(""));
+			} catch (Exception e) {}
+			String text = "";
+			for (int x = 0; x < world.size[0]; x++, text += sp[0])
+				for (int y = 0; y < world.size[1]; y++, text += sp[1])
+					for (int z = 0; z < world.size[2]; z++, text += sp[2])
+						text += world.getBlock(x, y, z).id;
+			cfg.saveConfigText(path, text);
+		}
+
+		public World generateWorld(String args) {
 			Config<String> worldCustom = new Config<String>(args.split(" "));
 			String[] worldCfgLines = worldCustom.readConfigLines(worldCustom.configsS + "/world" + worldCustom.cfgExtS);
 			Generation[] generations = new Generation[worldCfgLines.length - 5];
@@ -58,20 +117,10 @@ public class Main {
 
 					};
 				}
-			world = new World(MathUtils.parseI(worldCfgLines[0]), MathUtils.parseI(worldCfgLines[1]), MathUtils.parseI(worldCfgLines[2]), generations);
-			world.border = worldCfgLines[3].toLowerCase().contains("true");
-			world.blocksCollision = worldCfgLines[4].toLowerCase().contains("true");
-
-			for (String name : args.split(" "))
-				if (!name.startsWith("-") && name.length() > 0) {
-					(player = new Player(name)).controls = new SConfig(defaults.playersS + "/" + name + "/" + defaults.controlsS + defaults.cfgExtS);
-					player.input = frames.input;
-					player.position.coords = new double[] { world.size[0] / 2, world.size[1] - 1, world.size[2] / 2 };
-					player.rotation.coords[0] = 90;
-					physicals.add(player);
-				}
-
-			shaders.add(new FlickingShader());
+			World generatedWorld = new World(MathUtils.parseI(worldCfgLines[0]), MathUtils.parseI(worldCfgLines[1]), MathUtils.parseI(worldCfgLines[2]), generations);
+			generatedWorld.border = worldCfgLines[3].toLowerCase().contains("true");
+			generatedWorld.blocksCollision = worldCfgLines[4].toLowerCase().contains("true");
+			return generatedWorld;
 		}
 
 		public interface Shader extends Timed {}
@@ -181,8 +230,9 @@ public class Main {
 		private boolean stopped() { return player.ended || frames.isDestroyed(); }
 
 		private void endProgram() {
-			frames.destroy();
-			System.exit(0);
+			ExceptionsHandler.tryCatchVoid(() -> frames.destroy(), (e) -> e.printStackTrace());
+			ExceptionsHandler.tryCatchVoid(() -> saveWorld("world.txt"), (e) -> e.printStackTrace());
+			ExceptionsHandler.tryCatchVoid(() -> System.exit(0), (e) -> e.printStackTrace());
 		}
 	}
 }

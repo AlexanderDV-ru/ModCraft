@@ -24,7 +24,7 @@ public class Textures {
 	public HashMap<String, ByteBuffer> bufferMap = new HashMap<>();
 	public HashMap<String, int[]> pixelsMap = new HashMap<>();
 
-	public int use(String path) { return ExceptionsHandler.tryCatch(() -> get(path), (e) -> load(path)); }
+	public int use(String path) { return ExceptionsHandler.tryCatchReturn(() -> get(path), (e) -> load(path)); }
 
 	public int get(String path) throws TextureException {
 		if (this.idMap.containsKey(path))

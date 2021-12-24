@@ -1,12 +1,15 @@
 package ru.alexanderdv.modcraft;
 
 import static org.lwjgl.opengl.GL11.GL_QUADS;
+import static org.lwjgl.opengl.GL11.glBegin;
+import static org.lwjgl.opengl.GL11.glBindTexture;
+import static org.lwjgl.opengl.GL11.glColor4f;
+import static org.lwjgl.opengl.GL11.glEnd;
+import static org.lwjgl.opengl.GL11.glScaled;
 import static org.lwjgl.opengl.GL11.glTexCoord2f;
 
 import java.util.HashMap;
 
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.util.Renderable;
 import org.lwjgl.util.vector.Vector4f;
 
 import ru.alexanderdv.utils.VectorD;
@@ -15,38 +18,38 @@ import ru.alexanderdv.utils.lwjgl.VerticalNormalised;
 public class Block implements VerticalNormalised {
 	private static int _enum_counter = 0;
 
-	public static interface Side extends Renderable, VerticalNormalised {}
-
-	public static enum Side6 implements Side, VerticalNormalised {
-		TOP(00000 + 0, 1, 0, new double[][] { { 1, 0, 1 }, { 1, 0, 0 }, { 0, 0, 0 }, { 0, 0, 1 } }, new float[][] { { 1, 0 }, { 0, 0 }, { 0, 1 }, { 1, 1 } }),
-		BOTTOM(00 + 0, 0, 0, new double[][] { { 1, 0, 1 }, { 0, 0, 1 }, { 0, 0, 0 }, { 1, 0, 0 } }, new float[][] { { 0, 0 }, { 0, 1 }, { 1, 1 }, { 1, 0 } }),
-		RIGHT(000 + 1, 0, 0, new double[][] { { 0, 0, 1 }, { 0, 0, 0 }, { 0, 1, 0 }, { 0, 1, 1 } }, new float[][] { { 0, 1 }, { 1, 1 }, { 1, 0 }, { 0, 0 } }),
-		LEFT(0000 + 0, 0, 0, new double[][] { { 0, 0, 0 }, { 0, 0, 1 }, { 0, 1, 1 }, { 0, 1, 0 } }, new float[][] { { 1, 1 }, { 1, 0 }, { 0, 0 }, { 0, 1 } }),
-		FORWARD(0 + 0, 0, 1, new double[][] { { 0, 0, 0 }, { 1, 0, 0 }, { 1, 1, 0 }, { 0, 1, 0 } }, new float[][] { { 1, 0 }, { 0, 0 }, { 0, 1 }, { 1, 1 } }/* copy of TOP */),
-		BACK(0000 + 0, 0, 0, new double[][] { { 1, 0, 0 }, { 0, 0, 0 }, { 0, 1, 0 }, { 1, 1, 0 } }, new float[][] { { 1, 0 }, { 0, 0 }, { 0, 1 }, { 1, 1 } }/* copy of TOP */);
+	public static enum Side implements VerticalNormalised {// { 1, 0 }, { 0, 0 }, { 0, 1 }, { 1, 1 } rotated down
+		RIGHT(/*   */0, 1, new double[][] { { 0, 1 }, { 0, 0 }, { 1, 0 }, { 1, 1 } }, new float[][] { { 0, 1 }, { 1, 1 }, { 1, 0 }, { 0, 0 } }),
+		LEFT(/*    */0, 0, new double[][] { { 0, 0 }, { 0, 1 }, { 1, 1 }, { 1, 0 } }, new float[][] { { 0, 1 }, { 1, 1 }, { 1, 0 }, { 0, 0 } }),
+		TOP(/*     */1, 1, new double[][] { { 1, 1 }, { 1, 0 }, { 0, 0 }, { 0, 1 } }, new float[][] { { 1, 0 }, { 0, 0 }, { 0, 1 }, { 1, 1 } }),
+		BOTTOM(/*  */1, 0, new double[][] { { 1, 1 }, { 0, 1 }, { 0, 0 }, { 1, 0 } }, new float[][] { { 0, 0 }, { 0, 1 }, { 1, 1 }, { 1, 0 } }),
+		FORWARD(/* */2, 1, new double[][] { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } }, new float[][] { { 0, 1 }, { 1, 1 }, { 1, 0 }, { 0, 0 } }),
+		BACK(/*    */2, 0, new double[][] { { 1, 0 }, { 0, 0 }, { 0, 1 }, { 1, 1 } }, new float[][] { { 0, 1 }, { 1, 1 }, { 1, 0 }, { 0, 0 } }/* rotated up */);
 
 		public int id;
-		protected VectorD sideDirectionVector;
+		protected VectorD direction;
 		protected double[][] vertices;
 		protected float[][] texturing;
 
-		@Override
 		public void render() {
 			for (int p = 0; p < vertices.length; p++) {
 				glTexCoord2f(texturing[p][0], texturing[p][1]);
-				glVertex3d(vertices[p][0] + sideDirectionVector.getX() - 0.5d, vertices[p][1] + sideDirectionVector.getY() - 0.5d, vertices[p][2] + sideDirectionVector.getZ() - 0.5d);
+				glVertex3d(vertices[p][0] + direction.getX(), vertices[p][1] + direction.getY(), vertices[p][2] + direction.getZ());
 			}
 		}
 
-		Side6(double x, double y, double z, double[][] verticesMatrix, float[][] texturingMatrix) {
-			this.sideDirectionVector = new VectorD(x, y, z);
-			this.vertices = verticesMatrix;
+		Side(int axis, double value, double[][] verticesMatrix, float[][] texturingMatrix) {
+			this.direction = new VectorD(3);
+			this.direction.coords[axis] = value;
+			this.vertices = new double[4][3];
+			for (int n = 0; n < vertices.length; n++)
+				vertices[n] = new double[] { axis == 0 ? 0 : verticesMatrix[n][0], axis == 1 ? 0 : (verticesMatrix[n][axis == 2 ? 1 : 0]), axis == 2 ? 0 : verticesMatrix[n][1] };
 			this.texturing = texturingMatrix;
 
 			this.id = _enum_counter++;
 		}
 
-		public static Side6 parse(String string) {
+		public static Side parse(String string) {
 			try {
 				return values()[Integer.parseInt(string)];
 			} catch (Exception e) {
@@ -89,16 +92,23 @@ public class Block implements VerticalNormalised {
 
 	public boolean isVoid() { return id < 0; }
 
-	public void render() {
-		GL11.glScaled(sizeResolution / (sizeResolution + 1), sizeResolution / (sizeResolution + 1), sizeResolution / (sizeResolution + 1));
-		for (int i = 0; i < Side6.values().length; i++)
-			if (!w.isNeedHide(x, y, z)[i]) {
-				GL11.glBindTexture(3553, getTextures()[i % getTextures().length]);
-				GL11.glColor4f(getColors()[i % getColors().length].x, getColors()[i % getColors().length].y, getColors()[i % getColors().length].z, getColors()[i % getColors().length].w);
-				GL11.glBegin(GL_QUADS);
-				Side6.values()[i].render();
-				GL11.glEnd();
+	public void render(boolean[] hiddenSides) {
+		glScaled(sizeResolution / (sizeResolution + 1), sizeResolution / (sizeResolution + 1), sizeResolution / (sizeResolution + 1));
+		for (int i = 0; i < Side.values().length; i++)
+			if (!hiddenSides[i] && !(getName().contains("sapling") && (i != 1 && i != 4))) {
+				Side side = Side.values()[i];
+				glBindTexture(3553, getTextures()[i % getTextures().length]);
+				glColor4f(getColors()[i % getColors().length].x, getColors()[i % getColors().length].y, getColors()[i % getColors().length].z, getColors()[i % getColors().length].w);
+				if (getName().contains("sapling"))
+					glTranslated(i == 1 ? 0.5 : 0, 0, i == 4 ? -0.5 : 0);
+				glBegin(GL_QUADS);
+				side.render();
+				glEnd();
+				if (getName().contains("sapling"))
+					glTranslated(i == 1 ? -0.5 : 0, 0, i == 4 ? 0.5 : 0);
 			}
-		GL11.glScaled((sizeResolution + 1) / sizeResolution, (sizeResolution + 1) / sizeResolution, (sizeResolution + 1) / sizeResolution);
+		glScaled((sizeResolution + 1) / sizeResolution, (sizeResolution + 1) / sizeResolution, (sizeResolution + 1) / sizeResolution);
 	}
+
+	public boolean isBreakable() { return isSolid() && !getName().contains("bedrock"); }
 }

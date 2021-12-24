@@ -107,5 +107,7 @@ public interface Input extends Destroyable {
 
 		@Override
 		public boolean isKeyDown(int id) { return Keyboard.isKeyDown(id); }
+
+		public boolean isButtonDown(int i) { return Mouse.isButtonDown(i); }
 	}
 }

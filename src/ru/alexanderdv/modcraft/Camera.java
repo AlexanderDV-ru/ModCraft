@@ -39,7 +39,7 @@ public interface Camera extends VerticalNormalised {
 		glEnable(3553);
 	}
 
-	public default void pointOfVision(POV p) {
+	public default void pointOfView(POV p) {
 		glRotated(p.rotation.coords[0] = MathUtils.loopD(p.rotation.getX(), 0, 360), 1, 0, 0);
 		glRotated(p.rotation.coords[1] = MathUtils.loopD(p.rotation.getY(), 0, 360), 0, 1, 0);
 		glTranslated(-p.position.getX(), -p.position.getY(), -p.position.getZ());

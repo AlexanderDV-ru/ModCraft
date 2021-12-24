@@ -2,7 +2,7 @@ package ru.alexanderdv.modcraft;
 
 import java.util.Random;
 
-import ru.alexanderdv.modcraft.Block.Side6;
+import ru.alexanderdv.modcraft.Block.Side;
 import ru.alexanderdv.modcraft.PhysicalPOV.Collider;
 import ru.alexanderdv.modcraft.PhysicalPOV.PhysicalEnviroment;
 import ru.alexanderdv.utils.MathUtils;
@@ -29,7 +29,7 @@ public class World {
 	public World(int width, int height, int depth, Generation... generations) {
 		this.size = new int[] { width, height, depth };
 		blocks = new Block[calcArrSize()];
-		needHide = new boolean[calcArrSize()][Side6.values().length];
+		needHide = new boolean[calcArrSize()][Side.values().length];
 		for (int x = 0; x < width; x++)
 			for (int y = 0; y < height; y++)
 				for (int z = 0; z < depth; z++) {
@@ -51,11 +51,11 @@ public class World {
 		setNeedHide(x, y, z, getBlock(x, y, z).isMeshed() ? new boolean[6]
 				: new boolean[] {
 
+						!getBlock(x + 1, y, z).isTransparent(), !getBlock(x - 1, y, z).isTransparent(),
+
 						!getBlock(x, y + 1, z).isTransparent(), !getBlock(x, y - 1, z).isTransparent(),
 
-						!getBlock(x, y, z + 1).isTransparent(), !getBlock(x, y, z - 1).isTransparent(),
-
-						!getBlock(x + 1, y, z).isTransparent(), !getBlock(x - 1, y, z).isTransparent(), });
+						!getBlock(x, y, z + 1).isTransparent(), !getBlock(x, y, z - 1).isTransparent(), });
 	}
 
 	public boolean[] isNeedHide(int x, int y, int z) { return needHide[toPosInArrByFlags(x, y, z)]; }
@@ -66,10 +66,11 @@ public class World {
 
 	Collider worldCollider = (double[] position) -> {
 		for (int i = 0; i < 3; i++)
-			if (position[i] < -0.5 || position[i] > size[i] - 0.5)
+			if (position[i] < 0 || position[i] > size[i])
 				return false;
 		return true;
-	}, nonSolidBlocksCollider = (double[] position) -> { return getBlock((int) (position[0] + 0.5), (int) (position[1] + 0.5), (int) (position[2] + 0.5)).isCollidable(); };
+	}, nonSolidBlocksCollider = (double[] position) -> { return getBlock((int) position[0], (int) (position[1] - 0.05), (int) position[2]).isCollidable(); },
+			humanCollider = (double[] pos) -> { return nonSolidBlocksCollider.hasCollisionAt(pos) || getBlock((int) (pos[0]), (int) (pos[1] - 1.8), (int) (pos[2])).isCollidable(); };
 
 	Collider collider = new Collider() {
 		@Override

@@ -2,6 +2,10 @@ package ru.alexanderdv.modcraft;
 
 import java.util.Arrays;
 
+import ru.alexanderdv.modcraft.Block.Side;
+import ru.alexanderdv.modcraft.Config.SConfig;
+import ru.alexanderdv.utils.VectorD;
+
 public class PhysicalPOV extends POV {
 
 	public static interface Collider { boolean hasCollisionAt(double[] position); }
@@ -21,7 +25,19 @@ public class PhysicalPOV extends POV {
 		return f3;
 	}
 
-	protected double inertia = 1, kinematics = 1;
+	public Side isLooking() { return rotation.getX() > 120 && rotation.getX() < 270 ? Side.BACK : Side.FORWARD; }
+
+	public VectorD getLookDir() {
+		return new VectorD(new double[] {
+
+				-Math.sin(Math.toRadians(rotation.getY())),
+
+				-Math.max(Math.min(isLooking() == Side.BACK ? Math.tan(Math.toRadians(180 - rotation.getX())) : Math.tan(Math.toRadians(rotation.getX())), 1), -1),
+
+				+Math.cos(Math.toRadians(rotation.getY())) });
+	}
+
+	protected double inertia = 10, kinematics = 5;
 
 	public void applyVelocityIncreasing(double[] velocity, double[] adding, double ticksPerSecond) { for (int i = 0; i < adding.length; i++) { velocity[i] += adding[i] / ticksPerSecond; } }
 
@@ -56,9 +72,10 @@ public class PhysicalPOV extends POV {
 				return true;
 		return false;
 	});
+	public SConfig misc = new SConfig("configs/misc.cfg");
 
-	boolean collisionsInsideColliders = false;
-	double onCollisionMotionModifier = 0, onCollisionVelocityModifier = 0;
+	boolean collisionsInsideColliders = misc.bool("collisionsInsideColliders");
+	double onCollisionMotionModifier = misc.num("onCollisionMotionModifier"), onCollisionVelocityModifier = misc.num("onCollisionVelocityModifier");
 
 	protected void move(double motion, double[] coords, double[] velocity, int axis) {
 		coords[axis] += motion;

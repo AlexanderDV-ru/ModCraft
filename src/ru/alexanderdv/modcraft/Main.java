@@ -5,6 +5,7 @@ import java.util.Random;
 
 import javax.swing.JFrame;
 
+import ru.alexanderdv.modcraft.Config.SConfig;
 import ru.alexanderdv.modcraft.Controller.UserController;
 import ru.alexanderdv.modcraft.World.Generation;
 import ru.alexanderdv.modcraft.World.GenerationType;
@@ -29,18 +30,18 @@ public class Main {
 
 		public ModCraft(String args) {
 			Msgs.last = Msgs.msgs = new Msgs(args = this.getClass().getSimpleName() + " " + args) {};
-			Custom defaults = Custom.defaults = new Custom(args.split(" ")), texturesCustom = new Custom(args.split(" "));
+			Config<String> defaults = Config.defaults = new Config<String>(args.split(" "));
 
 			frames = new FramesManager(this.getClass().getSimpleName());
-			frames.displayFrame.init(Custom.hasArg("-displayInFrame", args) ? new JFrame() : null);
+			frames.displayFrame.init(Config.hasArg("-displayInFrame", args) ? new JFrame() : null);
 			frames.display.init(frames.displayFrame.frame);// TODO If rendering in other thread, it's also
 			frames.debugFrame.init(new JFrame("F3"));
 			frames.input.init(frames.display);
 
-			texturesCustom.loadBlocksWithTexturesTo(textures = new Textures(), Block.names);
+			new SConfig(defaults.configsS + "/" + defaults.texturesS + defaults.cfgExtS).apply(textures = new Textures(), Block.names);
 
-			Custom worldCustom = new Custom(args.split(" "));
-			String[] worldCfgLines = worldCustom.readCfgCustom(worldCustom.configsS + "/world" + worldCustom.cfgExtS);
+			Config<String> worldCustom = new Config<String>(args.split(" "));
+			String[] worldCfgLines = worldCustom.readConfigLines(worldCustom.configsS + "/world" + worldCustom.cfgExtS);
 			Generation[] generations = new Generation[worldCfgLines.length - 5];
 			for (int i = 0; i < generations.length; i++)
 				try {
@@ -63,7 +64,7 @@ public class Main {
 
 			for (String name : args.split(" "))
 				if (!name.startsWith("-") && name.length() > 0) {
-					(player = new Player(name)).custom = new Custom(defaults.playersS + "/" + name + "/" + defaults.controlsS + defaults.cfgExtS);
+					(player = new Player(name)).controls = new SConfig(defaults.playersS + "/" + name + "/" + defaults.controlsS + defaults.cfgExtS);
 					player.input = frames.input;
 					player.position.coords = new double[] { world.size[0] / 2, world.size[1] - 1, world.size[2] / 2 };
 					player.rotation.coords[0] = 90;
@@ -88,7 +89,7 @@ public class Main {
 			// blocks
 
 		public static class Time {
-			private double ticksPerSecond = 50, physicalScale = 50;
+			private double ticksPerSecond = 50, physicalScale = 1;
 
 			public double getTicksPerSecond() { return ticksPerSecond; }
 
@@ -138,30 +139,33 @@ public class Main {
 					player.controls();
 					time.changePhysicalScale(player.escape ? 0 : 1);
 
+					player.openEyes(frames.display.getWidth(), frames.display.getHeight(), 100d);
+
+					shaders.forEach((shader) -> shader.render());
+					player.pointOfView(player);
+					player.selectRenderDirectionByRotation(world);
+					player.doForEachSeenBlock((x, y, z) -> {
+						if (world.getBlock(x, y, z).id != 0) {
+							glTranslated(x, y, z);
+							world.getBlock(x, y, z).render(world.isNeedHide(x, y, z));
+							glTranslated(-x, -y, -z);
+						}
+					});
+					player.selector(world, time.getTicksPerSecond(), true);
 					time.doRemainingUpdateCount(() -> {
-						for (PhysicalPOV physical : physicals)
-							for (int i = 0; i < time.getPhysicalScale(); i++) {
+						for (int i = 0; i < time.getPhysicalScale(); i++) {
+							for (PhysicalPOV physical : physicals) {
 								physical.physics(world.enviroment);
 								physical.applyVelocityIncreasing(physical.velocity, physical.velocityIncreasing, time.getTicksPerSecond());
 								physical.applyVelocityIncreasing(physical.volution, physical.volutionIncreasing, time.getTicksPerSecond());
 								physical.velocityMotionWithInertia(physical.position.coords, physical.velocity, physical.getInertia(), world.collider);
 								physical.velocityMotionWithInertia(physical.rotation.coords, physical.volution, physical.getKinematics(), world.collider);
 							}
+							player.selector(world, time.getTicksPerSecond(), false);
+						}
 					}, () -> {
 						player.doForEachSeenBlock((x, y, z) -> world.calcNeedHide(x, y, z)/* fps x2 */);
 						shaders.forEach((shader) -> shader.update());
-					});
-
-					player.openEyes(frames.display.getWidth(), frames.display.getHeight(), 100d);
-					shaders.forEach((shader) -> shader.render());
-					player.pointOfVision(player);
-					player.selectRenderDirectionByRotation(world);
-					player.doForEachSeenBlock((x, y, z) -> {
-						if (world.getBlock(x, y, z).id != 0) {
-							glTranslated(x, y, z);
-							world.getBlock(x, y, z).render();
-							glTranslated(-x, -y, -z);
-						}
 					});
 					player.closeEyes();
 					frames.debugFrame.print(getF3());

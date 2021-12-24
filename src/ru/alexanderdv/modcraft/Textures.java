@@ -18,7 +18,7 @@ public class Textures {
 		public TextureException(String message, String path, Throwable cause) { super(message + " (In path " + path + ")", cause); }
 	}
 
-	public Custom custom;
+	public Config<String> config;
 
 	private HashMap<String, Integer> idMap = new HashMap<>();
 	public HashMap<String, ByteBuffer> bufferMap = new HashMap<>();
@@ -48,11 +48,11 @@ public class Textures {
 		GL11.glTexParameteri(3553, 10241, mode);
 		GL11.glTexParameteri(3553, 10240, mode);
 
-		BufferedImage img = custom.readImageCustom(path);
+		BufferedImage img = config.readConfigImage(path);
 		int w = img.getWidth();
 		int h = img.getHeight();
 
-		if (!Custom.hasArg("-dontAutoEqualSides", custom.args))
+		if (!Config.hasArg("-dontAutoEqualSides", config.args))
 			w = h = Math.min(w, h);
 		// TODO add animations, cuting, scaling, coloring, models, layers
 

@@ -52,19 +52,11 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 		boolean blinkingSelector = misc.bool("blinkingSelector");
 		Block selector = new Block(0, 0, 0, null, (int) (misc.bool("selectorId") ? misc.num("selectorId") : 21));
 
-		public void createExplosion(World world, double ex, double ey, double ez, int r) {
-			for (int x = (int) (ex - r); x < ex + r; x++)
-				for (int y = (int) (ey - r); y < ey + r; y++)
-					for (int z = (int) (ez - r); z < ez + r; z++)
-						if (Math.sqrt(Math.pow(ex - x, 2) + Math.pow(ey - y, 2) + Math.pow(ez - z, 2)) < r)
-							world.setBlock(x, y, z, 0);
-		}
-
 		int idInHand;
 		double blocksInSecond = misc.bool("blocksInSecond") ? misc.num("blocksInSecond") : 1, breakTime;
 		double tntExplosionRadius = misc.bool("tntExplosionRadius") ? misc.num("tntExplosionRadius") : 5;
 
-		public void selector(World world, double ticksPerSecond, boolean renderMode) {
+		public String selector(World world, double ticksPerSecond, boolean renderMode) {
 			glColor4f(0, 0, 0, 1);
 			for (int m = 0; m < blockBreakingDistance; m++) {
 				double x = position.getX() + getLookDir().getX() * m;
@@ -99,26 +91,25 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 						}
 					} else if (breakTime > ticksPerSecond / blocksInSecond) {
 						if (input.isButtonDown(0)) {
-							world.setBlock((int) x, (int) y, (int) z, 0);
 							breakTime = 0;
-							return;
+							return "setblock " + (int) x + " " + (int) y + " " + (int) z + " " + 0;
 						}
 						if (input.isButtonDown(1)) {
-							if (world.getBlock((int) x, (int) y, (int) z).getName().contains("tnt"))
-								createExplosion(world, x, y, z, (int) tntExplosionRadius);
-							else world.setBlock((int) (x - getLookDir().getX()), (int) (y - getLookDir().getY()), (int) (z - getLookDir().getZ()), idInHand);
 							breakTime = 0;
-							return;
+							if (world.getBlock((int) x, (int) y, (int) z).getName().contains("tnt"))
+								return "explosion " + (int) (x - getLookDir().getX()) + " " + (int) (y - getLookDir().getY()) + " " + (int) (z - getLookDir().getZ()) + " " + tntExplosionRadius;
+							else return "setblock " + (int) (x - getLookDir().getX()) + " " + (int) (y - getLookDir().getY()) + " " + (int) (z - getLookDir().getZ()) + " " + idInHand;
 						}
 						if (input.isButtonDown(2)) {
-							idInHand = world.getBlock((int) x, (int) y, (int) z).id;
 							breakTime = 0;
-							return;
+							idInHand = world.getBlock((int) x, (int) y, (int) z).id;
+							return "getblock";
 						}
 					}
 				}
 			}
 			breakTime++;
+			return "";
 		}
 
 		boolean escape = true, ended;

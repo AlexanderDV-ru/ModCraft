@@ -6,33 +6,43 @@ import static org.lwjgl.opengl.GL11.glColor4f;
 import static org.lwjgl.opengl.GL11.glEnd;
 import static org.lwjgl.opengl.GL11.glScaled;
 
+import java.util.Arrays;
+
 import ru.alexanderdv.modcraft.Block.Side;
 import ru.alexanderdv.modcraft.Config.SConfig;
 import ru.alexanderdv.modcraft.Input.DisplayInput;
 import ru.alexanderdv.modcraft.Input.Key;
+import ru.alexanderdv.utils.MathUtils;
 import ru.alexanderdv.utils.Named;
 import ru.alexanderdv.utils.VectorD;
 import ru.alexanderdv.utils.lwjgl.VerticalNormalised;
 
 public class Controller extends PhysicalPOV implements Named, VerticalNormalised {
-	public final String name;
+	private final String name;
 
 	@Override
 	public String getName() { return this.name; }
 
 	public Controller(String name) { this.name = name; }
 
-	public String getF3() { return "Name: " + name + "\n" + super.getF3(); }
+	public String getF3() { return "Name: " + name + "\n" + "Vision: " + Arrays.toString(vision.coords) + "\n" + "BreakDistance: " + Arrays.toString(breakDistance.coords) + "\n" + super.getF3(); }
 
-	protected double jump = misc.bool("jump") ? misc.num("jump") : 20, sprint = misc.bool("sprint") ? misc.num("sprint") : 3;
-	protected double speed = misc.bool("speed") ? misc.num("speed") : 5/* metes in second */, sensitivity = misc.bool("sensitivity") ? misc.num("sensitivity") : 1;
+	protected double jump = 20, sprint = 3;
+	protected double speed = 5/* meters in second */, sensitivity = 1;
 	protected boolean sprinting;
-	boolean[] canMoveTo = { true, false, true }, moveAtLook = { true, true, true };
-	double blockBreakingDistance = misc.bool("blockBreakingDistance") ? misc.num("blockBreakingDistance") : 5;
+	boolean[] canMoveTo = { true, false, true, false }, moveAtLook = { true, true, true, false };
+	VectorD vision = new VectorD(position.size());
+	VectorD breakDistance = new VectorD(position.size());
+	int idInHand;
+	double blocksInSecond = 1;
 
 	public boolean isFlying() { return canMoveTo[1]; }
 
 	public void setFlying(boolean flying) { this.canMoveTo[1] = flying; }
+
+	public boolean isEngah() { return canMoveTo[3]; }
+
+	public void setEngah(boolean engah) { this.canMoveTo[3] = engah; }
 
 	@Override
 	public void physics(PhysicalEnviroment enviroment) {
@@ -44,31 +54,35 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 		public UserController(String name) { super(name); }
 
 		public DisplayInput input;
-		public SConfig controls, misc = new SConfig("configs/misc.cfg");
+		public SConfig controls;
 
-		boolean canBreakAll = misc.bool("canBreakAll");
-		boolean lineSelector = misc.bool("lineSelector"), blockSelectorOff = misc.bool("blockSelectorOff");
-		boolean onPlayerFixedSelector = misc.bool("onPlayerFixedSelector");
-		boolean blinkingSelector = misc.bool("blinkingSelector");
-		Block selector = new Block(0, 0, 0, null, (int) (misc.bool("selectorId") ? misc.num("selectorId") : 21));
+		boolean canBreakAll;
+		boolean lineSelector, blockSelectorOff;
+		boolean onPlayerFixedSelector;
+		boolean blinkingSelector;
+		Block selector;
+		boolean transperantBlocksFromOtherWorlds;
 
-		int idInHand;
-		double blocksInSecond = misc.bool("blocksInSecond") ? misc.num("blocksInSecond") : 1, breakTime;
-		double tntExplosionRadius = misc.bool("tntExplosionRadius") ? misc.num("tntExplosionRadius") : 5;
+		double tntExplosionRadius = 5;
 
 		public String selector(World world, double ticksPerSecond, boolean renderMode) {
+			VectorD lookDir = getLookDir();
 			glColor4f(0, 0, 0, 1);
-			for (int m = 0; m < blockBreakingDistance; m++) {
-				double x = position.getX() + getLookDir().getX() * m;
-				double y = position.getY() + getLookDir().getY() * m + 0.05;
-				double z = position.getZ() + getLookDir().getZ() * m;
-				if ((world.getBlock((int) x, (int) y, (int) z).isBreakable() || canBreakAll && world.getBlock((int) x, (int) y, (int) z).id != 0)) {
+			for (int m = 0; m < MathUtils.max(breakDistance.coords); m++) {
+				for (int i = 0; i < breakDistance.coords.length; i++)
+					if (lookDir.coords[0] * m > breakDistance.coords[0])
+						return "";
+				double x = position.getX() + lookDir.getX() * m;
+				double y = position.getY() + lookDir.getY() * m + 0.05;
+				double z = position.getZ() + lookDir.getZ() * m;
+				double w = position.getW();
+				if ((world.getBlock((int) x, (int) y, (int) z, (int) w).isBreakable() || canBreakAll && world.getBlock((int) x, (int) y, (int) z, (int) w).id != 0)) {
 					if (renderMode) {
 						if (lineSelector) {
 							glTranslated(x, y - 0.1, z);
 							glBegin(GL_LINES);
-							glVertex3d(getLookDir().getX() * 0, getLookDir().getY() * 0, getLookDir().getZ() * 0);
-							glVertex3d(getLookDir().getX() * 1, getLookDir().getY() * 1, getLookDir().getZ() * 1);
+							glVertex3d(lookDir.getX() * 0, lookDir.getY() * 0, lookDir.getZ() * 0);
+							glVertex3d(lookDir.getX() * 1, lookDir.getY() * 1, lookDir.getZ() * 1);
 							glEnd();
 							glTranslated(-x, -y + 0.1, -z);
 						}
@@ -88,22 +102,23 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 							if (onPlayerFixedSelector)
 								glTranslated(-x, -y, -z);
 							else glTranslated((int) -x, (int) -y, (int) -z);
+							return "";
 						}
 					} else if (breakTime > ticksPerSecond / blocksInSecond) {
 						if (input.isButtonDown(0)) {
 							breakTime = 0;
-							return "setblock " + (int) x + " " + (int) y + " " + (int) z + " " + 0;
+							return "setblock " + x + " " + y + " " + z + " " + w + " " + 0;
 						}
 						if (input.isButtonDown(1)) {
 							breakTime = 0;
-							if (world.getBlock((int) x, (int) y, (int) z).getName().contains("tnt"))
-								return "explosion " + (int) (x - getLookDir().getX()) + " " + (int) (y - getLookDir().getY()) + " " + (int) (z - getLookDir().getZ()) + " " + tntExplosionRadius;
-							else return "setblock " + (int) (x - getLookDir().getX()) + " " + (int) (y - getLookDir().getY()) + " " + (int) (z - getLookDir().getZ()) + " " + idInHand;
+							if (world.getBlock((int) x, (int) y, (int) z, (int) w).getName().contains("tnt"))
+								return "explosion " + (x - lookDir.getX()) + " " + (y - lookDir.getY()) + " " + (z - lookDir.getZ()) + " " + (w - lookDir.getW()) + " " + tntExplosionRadius;
+							else return "setblock " + (x - lookDir.getX()) + " " + (y - lookDir.getY()) + " " + (z - lookDir.getZ()) + " " + (w - lookDir.getW()) + " " + idInHand;
 						}
 						if (input.isButtonDown(2)) {
 							breakTime = 0;
-							idInHand = world.getBlock((int) x, (int) y, (int) z).id;
-							return "getblock";
+							idInHand = world.getBlock((int) x, (int) y, (int) z, (int) w).id;
+							return "getblock " + x + " " + y + " " + z + " " + w;
 						}
 					}
 				}
@@ -111,6 +126,8 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 			breakTime++;
 			return "";
 		}
+
+		double breakTime;
 
 		boolean escape = true, ended;
 
@@ -129,11 +146,15 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 					setFlying(!isFlying());
 					notInGroundTime = 0;
 				}
+				if (controls.getInputValue(input, "switch", "engah").coords[0] == 1)
+					setEngah(!isEngah());
 				if (controls.getInputValue(input, "switch", "spectator").coords[0] == 1 || controls.getInputValue(input, "switch", "nocollision").coords[0] == 1)
 					collision.disabled = !collision.disabled;
 
-				if (controls.getInputValue(input, "click", "sneak").coords[0] == 1)
-					velocityIncreasing[1] += jump * (!isFlying() ? 1 : 0);
+				if (controls.getInputValue(input, "click", "jump").coords[0] == 1) {
+					notInGroundTime = 0;
+					velocityIncreasing.coords[1] += jump * (!isFlying() ? 1 : 0);
+				}
 			}
 			// TODO change all physical system: add update adding to delta and in the end
 			// multiply it to speed or sensitivity, change delta to velocity
@@ -162,63 +183,58 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 
 					(+keysMove.getZ() * (isLooking() == Side.BACK && isFreecam() ? -1 : 1) * +getLookDir().getZ()) + keysMove.getX() * getLookDir().getX() });
 
-			for (int axis = 0; axis < velocityIncreasing.length; axis++)
-				velocityIncreasing[axis] += (!canMoveTo[axis] ? 0 : (moveAtLook[axis] ? motionByLookDir.coords[axis] : keysMove.coords[axis])) * this.speed * (sprinting ? sprint : 1);
+			for (int axis = 0; axis < velocityIncreasing.coords.length; axis++)
+				velocityIncreasing.coords[axis] += (!canMoveTo[axis] ? 0 : (moveAtLook[axis] ? motionByLookDir.coords[axis] : keysMove.coords[axis])) * this.speed * (sprinting ? sprint : 1);
 
-			volutionIncreasing[0] += input.getVolutionX() * this.sensitivity;
-			volutionIncreasing[1] += input.getVolutionY() * this.sensitivity;
+			volutionIncreasing.coords[0] += input.getVolutionX() * this.sensitivity;
+			volutionIncreasing.coords[1] += input.getVolutionY() * this.sensitivity;
 		}
 
-		boolean freecamOnFlying = misc.bool("freecamOnFlying"), freecamOnSpectator = !misc.bool("dontFreecamOnSpectator");
+		boolean freecamOnFlying, freecamOnSpectator;
 
 		public boolean isFreecam() { return freecamOnFlying && moveAtLook[1] || freecamOnSpectator && collision.disabled; }
 
 		public boolean isInMenu() { return escape; }
 
-		int[] size = new int[3];
-		int xCount = 0, yCount = 0, zCount = 0;
-		int xModifier = 0, yModifier = 0, zModifier = 0;
+		VectorD renderWorldSize, count, modifier;
 
 		public void selectRenderDirectionByRotation(World world) {
-			if (rotation.getY() > 0 && rotation.getY() < 180) {
-				size[0] = 0;
-				xCount = world.size[0];
-				xModifier = -1;
-			}
-			if (rotation.getY() > 180 && rotation.getY() < 360) {
-				size[0] = world.size[0] - 1;
-				xCount = -1;
-				xModifier = 1;
-			}
-			if (rotation.getY() > 90 && rotation.getY() < 270) {
-				size[2] = 0;
-				zCount = world.size[2];
-				zModifier = -1;
-			}
-			if (rotation.getY() > 270 || rotation.getY() < 90) {
-				size[2] = world.size[2] - 1;
-				zCount = -1;
-				zModifier = 1;
-			}
-			if (rotation.getX() > 180) {
-				size[1] = world.size[1] - 1;
-				yCount = -1;
-				yModifier = 1;
-			}
-			if (rotation.getX() < 180) {
-				size[1] = 0;
-				yCount = world.size[1];
-				yModifier = -1;
+			if (renderWorldSize == null)
+				renderWorldSize = new VectorD(world.size.size());
+			if (count == null)
+				count = new VectorD(world.size.size());
+			if (modifier == null)
+				modifier = new VectorD(world.size.size());
+
+			for (int i = 0; i < position.coords.length; i++) {
+				// if (rotation.getY() > 0 && rotation.getY() < 180 && i == 0 || rotation.getX()
+				// < 180 && i == 1 || rotation.getY() > 90 && rotation.getY() < 270 && i == 2) {
+				renderWorldSize.coords[i] = (position.coords[i] - vision.coords[i]);
+				count.coords[i] = position.coords[i] + vision.coords[i];
+				modifier.coords[i] = -1;
+				// }
+				// if (rotation.getY() > 180 && rotation.getY() < 360 && i == 0 ||
+				// rotation.getX() > 180 && i == 1 || (rotation.getY() > 270 || rotation.getY()
+				// < 90) && i == 2) {
+				// renderWorldSize.coords[i] = position.coords[i] + vision.coords[i] - 1;
+				// count.coords[i] = (position.coords[i] - vision.coords[i]) - 1;
+				// modifier.coords[i] = 1;
+				// }
+				if (!world.repeat) {
+					renderWorldSize.coords[i] = MathUtils.clampD(renderWorldSize.coords[i], 0, world.size.coords[i]);
+					count.coords[i] = MathUtils.clampD(count.coords[i], 0, world.size.coords[i]);
+				}
 			}
 		}
 
-		public static interface ForEachPlace { void doForPlace(int x, int y, int z); }
+		public static interface ForEachPlace { void doForPlace(double x, double y, double z, double w); }
 
 		public void doForEachSeenBlock(ForEachPlace operation) {
-			for (int x = size[0]; x * xModifier > xCount * xModifier; x -= xModifier)
-				for (int y = size[1]; y * yModifier > yCount * yModifier; y -= yModifier)
-					for (int z = size[2]; z * zModifier > zCount * zModifier; z -= zModifier)
-						operation.doForPlace(x, y, z);
+			for (double x = renderWorldSize.coords[0]; x * modifier.coords[0] > count.coords[0] * modifier.coords[0]; x -= modifier.coords[0])
+				for (double y = renderWorldSize.coords[1]; y * modifier.coords[1] > count.coords[1] * modifier.coords[1]; y -= modifier.coords[1])
+					for (double z = renderWorldSize.coords[2]; z * modifier.coords[2] > count.coords[2] * modifier.coords[2]; z -= modifier.coords[2])
+						for (double w = renderWorldSize.coords[3]; w * modifier.coords[3] > count.coords[3] * modifier.coords[3]; w -= modifier.coords[3])
+							operation.doForPlace(x, y, z, w);
 		}
 	}
 }

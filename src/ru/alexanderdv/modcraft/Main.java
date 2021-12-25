@@ -3,10 +3,14 @@ package ru.alexanderdv.modcraft;
 import java.util.ArrayList;
 
 import javax.swing.JFrame;
+import javax.swing.JTextField;
 
 import ru.alexanderdv.modcraft.Commands.ToServerSender;
+import ru.alexanderdv.modcraft.Config.PlayerConfig;
 import ru.alexanderdv.modcraft.Config.SConfig;
+import ru.alexanderdv.modcraft.Config.WorldConfig;
 import ru.alexanderdv.modcraft.Controller.UserController;
+import ru.alexanderdv.modcraft.Input.Key;
 import ru.alexanderdv.modcraft.Shader.FlickingShader;
 import ru.alexanderdv.utils.ExceptionsHandler;
 import ru.alexanderdv.utils.MathUtils;
@@ -27,28 +31,35 @@ public class Main {
 		ArrayList<PhysicalPOV> physicals = new ArrayList<>();
 		ArrayList<Shader> shaders = new ArrayList<>();
 		String args;
-		WorldManager worldManager;
+		WorldConfig worldConfig;
 		Commands commands;
 
+//TODO realize a function how finded bug to moving world around you, not you around world, also interesting idea that worlds repeats, but with shift
 		public ModCraft(String args) {
 			Msgs.last = Msgs.msgs = new Msgs(this.args = args = this.getClass().getSimpleName() + " " + args) {};
-			Config<String> defaults = Config.defaults = new Config<String>(args.split(" "));
+			Config.defaults = new Config<String>(args.split(" "));
+			Config.paths = new SConfig("configs/paths.cfg");
 
 			frames = new FramesManager(args.split(" ")[0]);
 			frames.displayFrame.init(Config.hasArg("-displayInFrame", args) ? new JFrame() : null);
 			frames.display.init(frames.displayFrame.frame);// TODO If rendering in other thread, it's also
-			frames.debugFrame.init(new JFrame("F3"));
+			JFrame debugFrame = new JFrame("F3");
+			debugFrame.setLayout(new java.awt.GridLayout(2, 1));
+			JTextField console = new JTextField();
+			console.setText("In game CONSOLE: write there command and press enter to perform");
+			console.addActionListener((java.awt.event.ActionEvent arg0) -> { console.setText(commands.perform("console", console.getText())); });
+			debugFrame.add(console);
+			frames.debugFrame.init(debugFrame);
 			frames.input.init(frames.display);
 
-			new SConfig(defaults.configsS + "/" + defaults.texturesS + defaults.cfgExtS).apply(textures = new Textures(), Block.names);
-			world = (worldManager = new WorldManager()).getWorld("world.txt");
+			new SConfig("configs/textures.cfg").apply(textures = new Textures(), Block.names);
+			ExceptionsHandler.tryCatchVoid(() -> Msgs.last.debug("Loading world..."), (e) -> e.printStackTrace());
+			world = (worldConfig = new WorldConfig("new_world.save")).getWorld();
 
 			for (String name : args.split(" "))
-				if (!name.startsWith("-") && name.length() > 0) {
-					(player = new Player(name)).controls = new SConfig(defaults.playersS + "/" + name + "/" + defaults.controlsS + defaults.cfgExtS);
+				if (!name.startsWith("-") && name.length() > 0 && !name.equals(args.split(" ")[0])) {
+					new PlayerConfig(player = new Player(name)).configPlayer(world);
 					player.input = frames.input;
-					player.position.coords = new double[] { world.size[0] / 2, world.size[1] - 1, world.size[2] / 2 };
-					player.rotation.coords[0] = 90;
 					physicals.add(player);
 					break;
 				}
@@ -59,7 +70,6 @@ public class Main {
 			try {
 				client = new Networking();
 			} catch (Exception e) {}
-
 			try {
 				server = new Networking();
 				server.startInExceptionThread(() -> server.startServer(player.getName(), MathUtils.parseI(ar.split("-port:")[1].split(" ")[0])), (e) -> {});
@@ -68,8 +78,9 @@ public class Main {
 			shaders.add(new FlickingShader());
 		}
 
+		@Override
 		public void sendToServer(String executor, String cmd) {
-			if (client.socket == null)
+			if (args.split("-serverip:").length < 2 || args.split("-serverip:")[1].split(" ")[0].length() < 1)
 				return;
 			client.writeRequests.put(cmd, "");
 			client.startInExceptionThread(() -> client.startClient(executor, args.split("-serverip:")[1].split(" ")[0], MathUtils.parseI(args.split("-serverport:")[1].split(" ")[0])));
@@ -85,8 +96,8 @@ public class Main {
 			while (!stopped())
 				handler.tryCatchPrint(() -> {
 					for (PhysicalPOV physical : physicals) {
-						physical.clearVelocityIncreasing(physical.velocity, physical.velocityIncreasing);
-						physical.clearVelocityIncreasing(physical.volution, physical.volutionIncreasing);
+						physical.clearVelocityIncreasing(physical.velocity.coords, physical.velocityIncreasing.coords);
+						physical.clearVelocityIncreasing(physical.volution.coords, physical.volutionIncreasing.coords);
 					}
 
 					frames.input.nextKeys.clear();
@@ -102,18 +113,26 @@ public class Main {
 							commands.command(client.readenRequests.get(cmd), cmd);
 						client.readenRequests.clear();
 					} catch (Exception e) {}
+					for (String macros : commands.commands.keySet())
+						for (String macro : macros.split(","))
+							if (macro.toLowerCase().startsWith("key_"))
+								for (Key input : frames.input.nextKeys)
+									if (input.isKeyDown(macro))
+										commands.command("keyboard", macro);
 					time.changePhysicalScale(player.escape ? 0 : 1);
 
-					player.openEyes(frames.display.getWidth(), frames.display.getHeight(), 100d);
+					player.openEyes(frames.display.getWidth(), frames.display.getHeight(), player.vision.coords[0]);
 
 					shaders.forEach((shader) -> shader.render());
 					player.pointOfView(player);
 					player.selectRenderDirectionByRotation(world);
-					player.doForEachSeenBlock((x, y, z) -> {
-						if (world.getBlock(x, y, z).id != 0) {
-							glTranslated(x, y, z);
-							world.getBlock(x, y, z).render(world.isNeedHide(x, y, z));
-							glTranslated(-x, -y, -z);
+					player.doForEachSeenBlock((x, y, z, w) -> {
+						Block blockInCoords = world.getBlock(x, y, z, w);
+						if (blockInCoords.id != 0) {
+							glTranslated((int) x, (int) y, (int) z);
+							blockInCoords.opacity = !player.transperantBlocksFromOtherWorlds ? 1 : 1 / (float) (0.5 + Math.abs(w - player.position.getW()));
+							blockInCoords.render(world.isNeedHide(x, y, z, w));
+							glTranslated(-(int) x, -(int) y, -(int) z);
 						}
 					});
 					player.selector(world, time.getTicksPerSecond(), true);
@@ -121,15 +140,15 @@ public class Main {
 						for (int i = 0; i < time.getPhysicalScale(); i++) {
 							for (PhysicalPOV physical : physicals) {
 								physical.physics(world.enviroment);
-								physical.applyVelocityIncreasing(physical.velocity, physical.velocityIncreasing, time.getTicksPerSecond());
-								physical.applyVelocityIncreasing(physical.volution, physical.volutionIncreasing, time.getTicksPerSecond());
-								physical.velocityMotionWithInertia(physical.position.coords, physical.velocity, physical.getInertia(), world.collider);
-								physical.velocityMotionWithInertia(physical.rotation.coords, physical.volution, physical.getKinematics(), world.collider);
+								physical.applyVelocityIncreasing(physical.velocity.coords, physical.velocityIncreasing.coords, time.getTicksPerSecond());
+								physical.applyVelocityIncreasing(physical.volution.coords, physical.volutionIncreasing.coords, time.getTicksPerSecond());
+								physical.velocityMotionWithInertia(physical.position.coords, physical.velocity.coords, physical.getInertia(), world.collider);
+								physical.velocityMotionWithInertia(physical.rotation.coords, physical.volution.coords, physical.getKinematics(), world.collider);
 							}
 							commands.command(player.getName(), player.selector(world, time.getTicksPerSecond(), false));
 						}
 					}, () -> {
-						player.doForEachSeenBlock((x, y, z) -> world.calcNeedHide(x, y, z)/* fps x2 */);
+						player.doForEachSeenBlock((x, y, z, w) -> world.calcNeedHide(x, y, z, w)/* fps x2 */);
 						shaders.forEach((shader) -> shader.update());
 					});
 					player.closeEyes();
@@ -138,6 +157,7 @@ public class Main {
 					frames.update();
 					return null;
 				});
+
 			endProgram();
 		}
 
@@ -150,7 +170,8 @@ public class Main {
 			ExceptionsHandler.tryCatchVoid(() -> client.closeAll(), (e) -> e.printStackTrace());
 			ExceptionsHandler.tryCatchVoid(() -> server.closeAll(), (e) -> e.printStackTrace());
 			ExceptionsHandler.tryCatchVoid(() -> commands.close(), (e) -> e.printStackTrace());
-			ExceptionsHandler.tryCatchVoid(() -> worldManager.saveWorld(world), (e) -> e.printStackTrace());
+			ExceptionsHandler.tryCatchVoid(() -> Msgs.last.debug("Saving world to '" + worldConfig.configuredPath + "'..."), (e) -> e.printStackTrace());
+			ExceptionsHandler.tryCatchVoid(() -> worldConfig.saveWorld(world), (e) -> e.printStackTrace());
 			ExceptionsHandler.tryCatchVoid(() -> Msgs.last.debug("Closed with exit code 0"), (e) -> e.printStackTrace());
 			ExceptionsHandler.tryCatchVoid(() -> System.exit(0), (e) -> e.printStackTrace());
 		}

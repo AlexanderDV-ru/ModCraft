@@ -1,6 +1,6 @@
 package ru.alexanderdv.modcraft;
 
-import static org.lwjgl.opengl.GL11.GL_QUADS;
+import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL11.glBegin;
 import static org.lwjgl.opengl.GL11.glBindTexture;
 import static org.lwjgl.opengl.GL11.glColor4f;
@@ -61,10 +61,12 @@ public class Block implements VerticalNormalised {
 	public static final HashMap<Integer, String> names = new HashMap<>();
 	public static double sizeResolution = 100000000;
 
-	int id, x, y, z;
-	World w;
+	World world;
+	int x, y, z, w;
+	int id;
 
-	public Block(int x, int y, int z, World w, int id) {
+	public Block(World world, int x, int y, int z, int w, int id) {
+		this.world = world;
 		this.x = x;
 		this.y = y;
 		this.z = z;
@@ -92,15 +94,19 @@ public class Block implements VerticalNormalised {
 
 	public boolean isVoid() { return id < 0; }
 
+	float opacity = 1;
+
 	public void render(boolean[] hiddenSides) {
 		glScaled(sizeResolution / (sizeResolution + 1), sizeResolution / (sizeResolution + 1), sizeResolution / (sizeResolution + 1));
 		for (int i = 0; i < Side.values().length; i++)
 			if (!hiddenSides[i] && !(getName().contains("sapling") && (i != 1 && i != 4))) {
 				Side side = Side.values()[i];
 				glBindTexture(3553, getTextures()[i % getTextures().length]);
-				glColor4f(getColors()[i % getColors().length].x, getColors()[i % getColors().length].y, getColors()[i % getColors().length].z, getColors()[i % getColors().length].w);
-				if (getName().contains("sapling"))
+				glColor4f(getColors()[i % getColors().length].x, getColors()[i % getColors().length].y, getColors()[i % getColors().length].z, opacity);
+				if (getName().contains("sapling")) {
 					glTranslated(i == 1 ? 0.5 : 0, 0, i == 4 ? -0.5 : 0);
+					glDisable(GL_CULL_FACE);
+				} else glEnable(GL_CULL_FACE);
 				glBegin(GL_QUADS);
 				side.render();
 				glEnd();

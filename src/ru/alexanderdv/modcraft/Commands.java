@@ -18,12 +18,14 @@ public class Commands {
 	UserController player;
 	Thread systemConsoleScannerThread;
 	Scanner systemConsoleScanner;
+	SConfig permissions, commands;
 
 	public Commands(ToServerSender toServerSender, UserController player, WorldEdit worldEdit) {
 		this.toServerSender = toServerSender;
 		this.player = player;
 		this.worldEdit = worldEdit;
 		permissions = new SConfig("configs/permissions.cfg");
+		commands = new SConfig("configs/commands.cfg");
 		systemConsoleScannerThread = new Thread(() -> {
 			systemConsoleScanner = new Scanner(System.in);
 			while (systemConsoleScanner.hasNextLine())
@@ -44,8 +46,6 @@ public class Commands {
 		return result;
 	}
 
-	SConfig permissions;
-
 	protected boolean hasPermission(String executor, String permission) {
 		if (("," + permissions.get("default") + ",").contains("," + permission + ","))
 			return true;
@@ -54,27 +54,45 @@ public class Commands {
 
 	ArrayList<String> lastCommands = new ArrayList<>();
 
-	protected String perform(String executor, String line) {
+	protected String perform(String executor, String line) { return perform(executor, line, 0); }
+
+	protected String perform(String executor, String line, int recursion) {
 		String[] args = line.split(" ");
 		String cmd = args[0];
 		if (args.length == 1 && args[0].replaceAll("[0-9.,+-]+", "").equals(""))
 			return perform(executor, MathUtils.loopGet(lastCommands, MathUtils.parseI(args[0])));
+		if (recursion < 5)
+			for (String macros : commands.keySet())
+				if (("," + macros.toLowerCase() + ",").contains("," + args[0].toLowerCase() + ",")) {
+					String result = "";
+					for (String bind : commands.get(macros).split(","))
+						result += perform(executor, bind + line.substring(args[0].length()), bind.toLowerCase().startsWith(args[0].toLowerCase()) ? 5 : recursion + 1) + ";";
+					return result;
+				}
 		if (!hasPermission(executor, cmd))
 			return "Executor '" + executor + "' don't have enough permissions to perform command '" + line + "'!";
 		lastCommands.add(line);
-		VectorD pos = new VectorD(MathUtils.parseD(args[1]), MathUtils.parseD(args[2]), MathUtils.parseD(args[3]));
-		for (int i = 0; i < 3; i++)
-			if (args[1 + i].startsWith("~"))
-				pos.coords[i] += player.position.coords[i];
-		Msgs.last.debug(pos.coords);
+		VectorD pos = new VectorD(player.position.size());
+		for (int i = 0; i < player.position.size(); i++)
+			pos.coords[i] = MathUtils.parseD(args[1 + i]) + (args[1 + i].startsWith("~") ? player.position.coords[i] : 0);
 		if (cmd.equalsIgnoreCase("setblock"))
-			worldEdit.world.setBlock((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), args.length < 5 ? player.idInHand : MathUtils.parseI(args[4]));
-		else if (cmd.equalsIgnoreCase("teleport") || cmd.equalsIgnoreCase("tp"))
-			player.position.coords = new double[] { (int) pos.getX(), (int) pos.getY(), (int) pos.getZ() };
+			worldEdit.world.setBlock((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), (int) pos.getW(), args.length < 6 ? player.idInHand : MathUtils.parseI(args[5]));
+		else if (cmd.equalsIgnoreCase("setposition"))
+			for (int i = 0; i < player.position.size(); i++)
+				player.position.coords[i] = pos.coords[i];
+		else if (cmd.equalsIgnoreCase("setvelocity"))
+			for (int i = 0; i < player.velocity.size(); i++)
+				player.velocity.coords[i] = pos.coords[i];
+		else if (cmd.equalsIgnoreCase("setvision"))
+			for (int i = 0; i < player.vision.size(); i++)
+				player.vision.coords[i] = pos.coords[i];
+		else if (cmd.equalsIgnoreCase("setsize"))
+			for (int i = 0; i < player.size.size(); i++)
+				player.size.coords[i] = pos.coords[i];
 		else if (cmd.equalsIgnoreCase("explosion"))
-			worldEdit.createExplosion((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), args.length < 5 ? 5 : MathUtils.parseI(args[4]));
+			worldEdit.createExplosion((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), (int) pos.getW(), args.length < 6 ? player.tntExplosionRadius : MathUtils.parseI(args[5]));
 		else if (cmd.equalsIgnoreCase("sphere"))
-			worldEdit.sphere((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), MathUtils.parseD(args[4]), args.length < 6 ? player.idInHand : MathUtils.parseI(args[5]), args.length < 7 ? false : args[6].equals("true"));
+			worldEdit.sphere((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), (int) pos.getW(), MathUtils.parseD(args[5]), args.length < 7 ? player.idInHand : MathUtils.parseI(args[6]), args.length < 8 ? false : args[7].equals("true"));
 		else return "Unknown command '" + line + "'";
 		return "Command '" + line + "' performed";
 	}

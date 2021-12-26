@@ -29,7 +29,11 @@ public class Commands {
 		systemConsoleScannerThread = new Thread(() -> {
 			systemConsoleScanner = new Scanner(System.in);
 			while (systemConsoleScanner.hasNextLine())
-				command("console", systemConsoleScanner.nextLine());
+				try {
+					command("console", systemConsoleScanner.nextLine());
+				} catch (Exception e) {
+					Msgs.last.debug(e);
+				}
 			systemConsoleScanner.close();
 		});
 		systemConsoleScannerThread.start();
@@ -70,11 +74,11 @@ public class Commands {
 					return result;
 				}
 		if (!hasPermission(executor, cmd))
-			return "Executor '" + executor + "' don't have enough permissions to perform command '" + line + "'!";
+			return "Not enough permissions of '" + executor + "' for command '" + line + "'!";
 		lastCommands.add(line);
 		VectorD pos = new VectorD(player.position.size());
 		for (int i = 0; i < player.position.size(); i++)
-			pos.coords[i] = MathUtils.parseD(args[1 + i]) + (args[1 + i].startsWith("~") ? player.position.coords[i] : 0);
+			pos.coords[i] = args.length < 1 + i + 1 ? player.position.coords[i] : MathUtils.parseD(args[1 + i]) + (args[1 + i].startsWith("~") ? player.position.coords[i] : 0);
 		if (cmd.equalsIgnoreCase("setblock"))
 			worldEdit.world.setBlock((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), (int) pos.getW(), args.length < 6 ? player.idInHand : MathUtils.parseI(args[5]));
 		else if (cmd.equalsIgnoreCase("setposition"))
@@ -93,8 +97,8 @@ public class Commands {
 			worldEdit.createExplosion((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), (int) pos.getW(), args.length < 6 ? player.tntExplosionRadius : MathUtils.parseI(args[5]));
 		else if (cmd.equalsIgnoreCase("sphere"))
 			worldEdit.sphere((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), (int) pos.getW(), MathUtils.parseD(args[5]), args.length < 7 ? player.idInHand : MathUtils.parseI(args[6]), args.length < 8 ? false : args[7].equals("true"));
-		else return "Unknown command '" + line + "'";
-		return "Command '" + line + "' performed";
+		else return "Unknown command '" + line + "' of '" + executor + "'";
+		return "Command '" + line + "' of '" + executor + "' performed";
 	}
 
 	public void close() { systemConsoleScannerThread.interrupt(); }

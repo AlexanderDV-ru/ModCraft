@@ -1,5 +1,10 @@
 package ru.alexanderdv.utils.lwjgl;
 
+/**
+ * It is crutch using defaults interface, how import, not class or interface.
+ * <br>
+ * Need to y-axis in LWJGL go from down to up in world, not from display top.
+ */
 public interface VerticalNormalised {
 	default void glTranslatef(float x, float y, float z) { org.lwjgl.opengl.GL11.glTranslatef(-x, +y, -z); }
 

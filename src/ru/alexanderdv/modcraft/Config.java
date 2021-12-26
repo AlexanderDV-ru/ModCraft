@@ -4,8 +4,12 @@ import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -15,8 +19,6 @@ import java.util.HashMap;
 import javax.imageio.ImageIO;
 
 import ru.alexanderdv.modcraft.Controller.UserController;
-import ru.alexanderdv.modcraft.World.Generation;
-import ru.alexanderdv.modcraft.World.GenerationType;
 import ru.alexanderdv.utils.ExceptionsHandler;
 import ru.alexanderdv.utils.MathUtils;
 import ru.alexanderdv.utils.MessageSystem.Msgs;
@@ -131,13 +133,17 @@ public class Config<Type> extends HashMap<String, Type> {
 		}
 	}
 
-	public void saveConfigText(String path, String text) {
+	public OutputStream getOutputStream(String path) throws IOException {
 		path = configuredPath(path);
+		File f = new File(savesPath + path);
+		ExceptionsHandler.tryCatchVoid(() -> f.getParentFile().mkdirs());
+		ExceptionsHandler.tryCatchVoid(() -> f.createNewFile());
+		return Files.newOutputStream(Paths.get(f.getAbsolutePath()));
+	}
+
+	public void saveConfigText(String path, String text) {
 		try {
-			File f = new File(savesPath + path);
-			ExceptionsHandler.tryCatchVoid(() -> f.getParentFile().mkdirs());
-			ExceptionsHandler.tryCatchVoid(() -> f.createNewFile());
-			BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(Paths.get(f.getAbsolutePath())), defaultCharset));
+			BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(getOutputStream(path), defaultCharset));
 			writer.write(text);
 			writer.close();
 		} catch (Exception e2) {
@@ -162,9 +168,13 @@ public class Config<Type> extends HashMap<String, Type> {
 
 		public String get(Object key, String defaultValue) { return bool(key) ? get(key) : defaultValue; }
 
-		public boolean bool(Object key) { return !get(key).matches("false|undefined|default|null|[0.]+|not|no|n|[ ]*"); }
+		public boolean toBool(String value) { return !value.matches("false|undefined|default|null|[0.]+|not|no|n|[ ]*"); }
 
-		public double num(Object key, double defaultValue) { return MathUtils.parseD(get(key, defaultValue + "")); }
+		public double toNum(String value) { return MathUtils.parseD(value); }
+
+		public boolean bool(Object key) { return toBool(get(key)); }
+
+		public double num(Object key, double defaultValue) { return toNum(get(key, defaultValue + "")); }
 
 		public String axis(String key, String defaultValue) {
 
@@ -259,10 +269,10 @@ public class Config<Type> extends HashMap<String, Type> {
 
 			player.sensitivity = this.num("sensitivity", 1);
 
-			for (int i = 0; i < player.rotation.coords.length; i++)
-				player.canMoveTo[i] = this.coord("canMoveTo." + i, 90) != 0;
-			for (int i = 0; i < player.rotation.coords.length; i++)
-				player.moveAtLook[i] = this.coord("moveAtLook." + i, 90) != 0;
+			for (int i = 0; i < player.canMoveTo.length; i++)
+				player.canMoveTo[i] = toBool(this.axis("canMoveTo." + i, "true"));
+			for (int i = 0; i < player.moveAtLook.length; i++)
+				player.moveAtLook[i] = toBool(this.axis("moveAtLook." + i, i % 2 == 0 ? "true" : "false"));
 
 			player.freecamOnFlying = this.bool("freecamOnFlying");
 			player.freecamOnSpectator = !this.bool("dontFreecamOnSpectator");
@@ -270,12 +280,12 @@ public class Config<Type> extends HashMap<String, Type> {
 			player.sprint = this.num("sprint", 3);
 			player.speed = this.num("speed", 5);
 
-			player.canBreakAll = this.bool("canBreakAll");
+			player.canBreak = (this.bool("canBreakAll") ? "all" : (!this.get("canBreakAll").equals("") ? "default" : "")) + "," + this.get("canBreak");
 			player.lineSelector = this.bool("lineSelector");
 			player.blockSelectorOff = this.bool("blockSelectorOff");
 			player.onPlayerFixedSelector = this.bool("onPlayerFixedSelector");
 			player.blinkingSelector = this.bool("blinkingSelector");
-			player.selector = new Block(null, 0, 0, 0, 0, (int) this.num("selectorId", 21));
+			player.selector = new Block(0, 0, 0, 0, (int) this.num("selectorId", 21));
 			player.idInHand = (int) this.num("idInHand", 1);
 			player.blocksInSecond = this.num("blocksInSecond", 1);
 			player.tntExplosionRadius = this.num("tntExplosionRadius", 5);
@@ -294,60 +304,37 @@ public class Config<Type> extends HashMap<String, Type> {
 
 		static String[] sp = { "\n", ";", ",", "'" };
 
-		public World loadWorld(String path) {
+		public void loadWorldTxt(String path) {
 			String saveTxt = String.join(sp[0], lines);
-			String[][][][] saveIds = new String[saveTxt.split(sp[0]).length][saveTxt.split(sp[0])[0].split(sp[1]).length][
-
-			saveTxt.split(sp[0])[0].split(sp[1])[0].split(sp[2]).length][saveTxt.split(sp[0])[0].split(sp[1])[0].split(sp[2])[0].split(sp[3]).length];
-			for (int x = 0; x < saveTxt.split(sp[0]).length; x++)
-				if (stringIsNotEmpty(saveTxt.split(sp[0])[x]))
-					for (int y = 0; y < saveTxt.split(sp[0])[x].split(sp[1]).length; y++)
-						if (stringIsNotEmpty(saveTxt.split(sp[0])[x].split(sp[1])[y]))
-							for (int z = 0; z < saveTxt.split(sp[0])[x].split(sp[1])[y].split(sp[2]).length; z++)
-								if (stringIsNotEmpty(saveTxt.split(sp[0])[x].split(sp[1])[y].split(sp[2])[z]))
-									try {
-										saveIds[x][y][z] = saveTxt.split(sp[0])[x].split(sp[1])[y].split(sp[2])[z].split(sp[3]);
-									} catch (Exception e) {
-										e.printStackTrace();
-									}
-			world = new World(saveIds.length, saveIds[0].length, saveIds[0][0].length, saveIds[0][0][0].length);
-			for (int i = 0; i < world.size.size(); i++)
-				if (world.size.coords[i] < 2)
-					throw new RuntimeException("Zero world size");
-			for (int x = 0; x < saveIds.length; x++)
-				for (int y = 0; y < saveIds[x].length; y++)
-					for (int z = 0; z < saveIds[x][y].length; z++)
-						for (int w = 0; w < saveIds[x][y][z].length; w++)
-							try {
-								world.setBlock(x, y, z, w, MathUtils.parseI(saveIds[x][y][z][w]));
-							} catch (Exception e) {
-								e.printStackTrace();
-							}
-			setWorldByConfig();
-			return world;
-		}
-
-		public World generateWorld() {
-			SConfig cfg = getCfg();
-			this.lines = cfg.lines;
-			Generation[] generations = new Generation[lines.length];
-			for (int i = 0; i < generations.length; i++)
-				try {
-					generations[i] = GenerationType.valueOf(lines[i].toUpperCase());
-				} catch (Exception e) {
-					final int o = i;
-					generations[i] = new Generation() {
-						@Override
-						public Block getBlock(World world, double x, double y, double z, double w) {
-							if (y < MathUtils.parseI(lines[o].split(":")[0]))
-								return new Block(world, (int) x, (int) y, (int) z, (int) w, MathUtils.parseI(lines[o].split(":")[1]));
-							else return world.getBlock(x, y, z, w);
-						}
-					};
-				}
-			world = new World((int) cfg.num("xSize", 0), (int) cfg.num("ySize", 0), (int) cfg.num("zSize", 0), (int) cfg.num("wSize", 0), generations);
-			setWorldByConfig();
-			return world;
+			String[] xSplit = saveTxt.split(sp[0]), ySplit = xSplit[0].split(sp[1]), zSplit = ySplit[0].split(sp[2]), wSplit = zSplit[0].split(sp[3]);
+			world = new World(xSplit.length, ySplit.length, zSplit.length, wSplit.length, "12-*:0");
+			new Thread(() -> {
+				String[][][][] saveIds = new String[xSplit.length][ySplit.length][zSplit.length][wSplit.length];
+				for (int x = 0; x < saveTxt.split(sp[0]).length; x++)
+					if (stringIsNotEmpty(saveTxt.split(sp[0])[x]))
+						for (int y = 0; y < saveTxt.split(sp[0])[x].split(sp[1]).length; y++)
+							if (stringIsNotEmpty(saveTxt.split(sp[0])[x].split(sp[1])[y]))
+								for (int z = 0; z < saveTxt.split(sp[0])[x].split(sp[1])[y].split(sp[2]).length; z++)
+									if (stringIsNotEmpty(saveTxt.split(sp[0])[x].split(sp[1])[y].split(sp[2])[z]))
+										try {
+											saveIds[x][y][z] = saveTxt.split(sp[0])[x].split(sp[1])[y].split(sp[2])[z].split(sp[3]);
+										} catch (Exception e) {
+											e.printStackTrace();
+										}
+				for (int i = 0; i < world.size.size(); i++)
+					if (world.size.coords[i] < 2)
+						throw new RuntimeException("Zero world size");
+				for (int x = 0; x < saveIds.length; x++)
+					for (int y = 0; y < saveIds[x].length; y++)
+						for (int z = 0; z < saveIds[x][y].length; z++)
+							for (int w = 0; w < saveIds[x][y][z].length; w++)
+								try {
+									world.setBlock(x, y, z, w, MathUtils.parseI(saveIds[x][y][z][w]));
+								} catch (Exception e) {
+									e.printStackTrace();
+								}
+				Thread.currentThread().interrupt();
+			}).start();
 		}
 
 		private SConfig getCfg() {
@@ -358,38 +345,88 @@ public class Config<Type> extends HashMap<String, Type> {
 
 		private void setWorldByConfig() {
 			SConfig cfg = getCfg();
-			world.blocksCollision = cfg.bool("blocksCollision");
+			world.blocksHaveCollision = cfg.bool("blocksCollision");
 			world.border = cfg.bool("border");
 			world.clamp = cfg.bool("clamp");
 			world.repeat = cfg.bool("repeat");
 			world.loop = cfg.bool("loop");
 		}
 
-		World world;
-
-		public World getWorld() {
-			if (world == null)
-				try {
-					world = loadWorld(_path);
-				} catch (Exception e) {
-					world = generateWorld();
-				}
-			return world;
+		private void setWorldLambdas() {
+			world.nonSolidBlocksCollider = (double[] position) -> { return world.getBlock(position[0], position[1], position[2], position[3]).isCollidable(); };
+			world.borderCollider = (double[] position) -> {
+				for (int i = 0; i < 3; i++)
+					if (position[i] < 0 || position[i] > world.size.coords[i])
+						return false;
+				return true;
+			};
+			world.collider = (double[] position) -> {
+				if (position.length != world.size.coords.length)
+					return false;
+				return (world.border ? !world.borderCollider.hasCollisionAt(position) : false) || (world.blocksHaveCollision ? world.nonSolidBlocksCollider.hasCollisionAt(position) : false);
+			};
 		}
 
-		public void saveWorld(World world) {
-			SConfig cfg = null;
-			try {
-				cfg = new SConfig(_path);
-			} catch (Exception e) {}
+		World world;
+
+		public void loadWorldDat() throws Exception {
+			ObjectInputStream objectInputStream = new ObjectInputStream(getConfigInputStream(getSavingPath()));
+			world = (World) objectInputStream.readObject();
+			objectInputStream.close();
+		}
+
+		public void saveWorldTxt(World world) throws Exception {
+			SConfig cfg = new SConfig(getSavingPath());
 			String text = "";
 			for (int x = 0; x < world.size.coords[0]; x++, text += sp[0])
 				for (int y = 0; y < world.size.coords[1]; y++, text += sp[1])
 					for (int z = 0; z < world.size.coords[2]; z++, text += sp[2])
 						for (int w = 0; w < world.size.coords[3]; w++, text += sp[3])
 							text += world.getBlock(x, y, z, w).id;
-			cfg.saveConfigText(_path, text);
+			cfg.saveConfigText(_path.replace(".save", ".txt"), text);
 		}
+
+		public void saveWorldDat(World world) throws Exception {
+			ObjectOutputStream objectOutputStream = new ObjectOutputStream(getOutputStream(getSavingPath()));
+			objectOutputStream.writeObject(world);
+			objectOutputStream.flush();
+			objectOutputStream.close();
+		}
+
+		public void saveWorld(World world) {
+			SConfig cfgCfg = getCfg();
+			Msgs.last.debug("Saving world to '" + getSavingPath() + "'...");
+			try {
+				if (cfgCfg.get("type").equalsIgnoreCase("txt"))
+					saveWorldTxt(world);
+				else saveWorldDat(world);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
+		public World getWorld() {
+			SConfig cfg = getCfg();
+			if (world == null)
+				try {
+					try {
+						Msgs.last.debug("Loading world from '" + getSavingPath().replace(".txt", ".dat").replace(".save", ".dat") + "'...");
+						loadWorldDat();
+					} catch (Exception e) {
+						Msgs.last.debug("Loading world from '" + getSavingPath().replace(".dat", ".txt").replace(".save", ".txt") + "'...");
+						loadWorldTxt(_path);
+					}
+				} catch (Exception e) {
+					Msgs.last.debug("Can not load the world! Generating world...");
+					world = new World((int) cfg.num("xSize", 0), (int) cfg.num("ySize", 0), (int) cfg.num("zSize", 0), (int) cfg.num("wSize", 0), String.join(",", cfg.lines));
+				} finally {
+					setWorldByConfig();
+					setWorldLambdas();
+				}
+			return world;
+		}
+
+		public String getSavingPath() { return configuredPath(getCfg().get("type").equalsIgnoreCase("txt") ? _path.replace(".save", ".txt") : _path.replace(".save", ".dat")); }
 	}
 
 }

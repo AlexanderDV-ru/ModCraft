@@ -23,27 +23,35 @@ import ru.alexanderdv.utils.MathUtils;
 import ru.alexanderdv.utils.lwjgl.VerticalNormalised;
 
 public interface Camera extends VerticalNormalised {
+	public void openEyes(double width, double height, double visionDistance);
 
-	public default void openEyes(double width, double height, double visionDistance) {
-		glPushMatrix();
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		gluPerspective(70, (float) width / (float) height, 0.03f, (float) visionDistance);
-		glViewport(0, 0, (int) width, (int) height);
-		glMatrixMode(GL_MODELVIEW);
-		glEnable(GL_DEPTH_TEST);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glLoadIdentity();
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glEnable(3553);
+	public void pointOfView(POV p);
+
+	public void closeEyes();
+
+	public static class FirstPersonCamera implements Camera {
+
+		public void openEyes(double width, double height, double visionDistance) {
+			glPushMatrix();
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();
+			gluPerspective(70, (float) width / (float) height, 0.03f, (float) visionDistance);
+			glViewport(0, 0, (int) width, (int) height);
+			glMatrixMode(GL_MODELVIEW);
+			glEnable(GL_DEPTH_TEST);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glLoadIdentity();
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glEnable(3553);
+		}
+
+		public void pointOfView(POV p) {
+			glRotated(p.rotation.coords[0] = MathUtils.loopD(p.rotation.getX(), 0, 360), 1, 0, 0);
+			glRotated(p.rotation.coords[1] = MathUtils.loopD(p.rotation.getY(), 0, 360), 0, 1, 0);
+			glTranslated(-p.position.getX(), -p.position.getY(), -p.position.getZ());
+		}
+
+		public void closeEyes() { glPopMatrix(); }
 	}
-
-	public default void pointOfView(POV p) {
-		glRotated(p.rotation.coords[0] = MathUtils.loopD(p.rotation.getX(), 0, 360), 1, 0, 0);
-		glRotated(p.rotation.coords[1] = MathUtils.loopD(p.rotation.getY(), 0, 360), 0, 1, 0);
-		glTranslated(-p.position.getX(), -p.position.getY(), -p.position.getZ());
-	}
-
-	public default void closeEyes() { glPopMatrix(); }
 }

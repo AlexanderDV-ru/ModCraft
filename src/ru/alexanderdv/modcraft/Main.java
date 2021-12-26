@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import javax.swing.JFrame;
 import javax.swing.JTextField;
 
+import ru.alexanderdv.modcraft.Camera.FirstPersonCamera;
 import ru.alexanderdv.modcraft.Commands.ToServerSender;
 import ru.alexanderdv.modcraft.Config.PlayerConfig;
 import ru.alexanderdv.modcraft.Config.SConfig;
@@ -21,13 +22,13 @@ public class Main {
 	public static void main(String args[]) { new ModCraft(String.join(" ", args)).start(); }
 
 	public static class ModCraft implements VerticalNormalised, ToServerSender {
-		public static class Player extends UserController implements Camera { public Player(String name) { super(name); } }
-
 		Networking client, server;
 		FramesManager frames;
 		Textures textures;
 		World world;
-		Player player;
+		UserController player;
+		FirstPersonCamera firstPersonCamera;
+		Camera camera/* current */;
 		ArrayList<PhysicalPOV> physicals = new ArrayList<>();
 		ArrayList<Shader> shaders = new ArrayList<>();
 		String args;
@@ -41,8 +42,6 @@ public class Main {
 			Config.paths = new SConfig("configs/paths.cfg");
 
 			frames = new FramesManager(args.split(" ")[0]);
-			frames.displayFrame.init(Config.hasArg("-displayInFrame", args) ? new JFrame() : null);
-			frames.display.init(frames.displayFrame.frame);// TODO If rendering in other thread, it's also
 			JFrame debugFrame = new JFrame("F3");
 			debugFrame.setLayout(new java.awt.GridLayout(2, 1));
 			JTextField console = new JTextField();
@@ -50,20 +49,20 @@ public class Main {
 			console.addActionListener((java.awt.event.ActionEvent arg0) -> { console.setText(commands.perform("console", console.getText())); });
 			debugFrame.add(console);
 			frames.debugFrame.init(debugFrame);
+			frames.displayFrame.init(Config.hasArg("-displayInFrame", args) ? new JFrame() : null);
+			frames.display.init(frames.displayFrame.frame);// TODO If rendering in other thread, it's also
 			frames.input.init(frames.display);
 
 			new SConfig("configs/textures.cfg").apply(textures = new Textures(), Block.names);
-			ExceptionsHandler.tryCatchVoid(() -> Msgs.last.debug("Loading world..."), (e) -> e.printStackTrace());
 			world = (worldConfig = new WorldConfig("new_world.save")).getWorld();
-
 			for (String name : args.split(" "))
 				if (!name.startsWith("-") && name.length() > 0 && !name.equals(args.split(" ")[0])) {
-					new PlayerConfig(player = new Player(name)).configPlayer(world);
+					new PlayerConfig(player = new UserController(name)).configPlayer(world);
 					player.input = frames.input;
 					physicals.add(player);
 					break;
 				}
-
+			camera = firstPersonCamera = new FirstPersonCamera();
 			commands = new Commands(this, player, new WorldEdit(world));
 
 			final String ar = args;
@@ -77,6 +76,12 @@ public class Main {
 
 			shaders.add(new FlickingShader());
 		}
+
+		// TODO lava killing you, screen makes more red for full blindness
+		// TODO healing block pumpkin or medicine
+		// TODO inventory hotbar
+		// TODO hearts in not spectator mode
+		// TODO instructions - git wiki?
 
 		@Override
 		public void sendToServer(String executor, String cmd) {
@@ -121,10 +126,9 @@ public class Main {
 										commands.command("keyboard", macro);
 					time.changePhysicalScale(player.escape ? 0 : 1);
 
-					player.openEyes(frames.display.getWidth(), frames.display.getHeight(), player.vision.coords[0]);
-
+					camera.openEyes(frames.display.getWidth(), frames.display.getHeight(), player.vision.coords[0]);
 					shaders.forEach((shader) -> shader.render());
-					player.pointOfView(player);
+					camera.pointOfView(player);
 					player.selectRenderDirectionByRotation(world);
 					player.doForEachSeenBlock((x, y, z, w) -> {
 						Block blockInCoords = world.getBlock(x, y, z, w);
@@ -139,7 +143,7 @@ public class Main {
 					time.doRemainingUpdateCount(() -> {
 						for (int i = 0; i < time.getPhysicalScale(); i++) {
 							for (PhysicalPOV physical : physicals) {
-								physical.physics(world.enviroment);
+								physical.physics(world);
 								physical.applyVelocityIncreasing(physical.velocity.coords, physical.velocityIncreasing.coords, time.getTicksPerSecond());
 								physical.applyVelocityIncreasing(physical.volution.coords, physical.volutionIncreasing.coords, time.getTicksPerSecond());
 								physical.velocityMotionWithInertia(physical.position.coords, physical.velocity.coords, physical.getInertia(), world.collider);
@@ -151,7 +155,7 @@ public class Main {
 						player.doForEachSeenBlock((x, y, z, w) -> world.calcNeedHide(x, y, z, w)/* fps x2 */);
 						shaders.forEach((shader) -> shader.update());
 					});
-					player.closeEyes();
+					camera.closeEyes();
 					frames.debugFrame.print(getF3());
 					frames.displayFrame.print(getF3());
 					frames.update();
@@ -170,7 +174,6 @@ public class Main {
 			ExceptionsHandler.tryCatchVoid(() -> client.closeAll(), (e) -> e.printStackTrace());
 			ExceptionsHandler.tryCatchVoid(() -> server.closeAll(), (e) -> e.printStackTrace());
 			ExceptionsHandler.tryCatchVoid(() -> commands.close(), (e) -> e.printStackTrace());
-			ExceptionsHandler.tryCatchVoid(() -> Msgs.last.debug("Saving world to '" + worldConfig.configuredPath + "'..."), (e) -> e.printStackTrace());
 			ExceptionsHandler.tryCatchVoid(() -> worldConfig.saveWorld(world), (e) -> e.printStackTrace());
 			ExceptionsHandler.tryCatchVoid(() -> Msgs.last.debug("Closed with exit code 0"), (e) -> e.printStackTrace());
 			ExceptionsHandler.tryCatchVoid(() -> System.exit(0), (e) -> e.printStackTrace());

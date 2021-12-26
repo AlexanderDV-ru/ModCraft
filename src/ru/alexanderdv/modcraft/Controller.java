@@ -30,7 +30,7 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 	protected double jump = 20, sprint = 3;
 	protected double speed = 5/* meters in second */, sensitivity = 1;
 	protected boolean sprinting;
-	boolean[] canMoveTo = { true, false, true, false }, moveAtLook = { true, true, true, false };
+	boolean[] canMoveTo = new boolean[position.size()], moveAtLook = new boolean[position.size()];
 	VectorD vision = new VectorD(position.size());
 	VectorD breakDistance = new VectorD(position.size());
 	int idInHand;
@@ -56,19 +56,16 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 		public DisplayInput input;
 		public SConfig controls;
 
-		boolean canBreakAll;
-		boolean lineSelector, blockSelectorOff;
-		boolean onPlayerFixedSelector;
-		boolean blinkingSelector;
+		/** Is setting from PlayerConfig */
+		boolean lineSelector, blockSelectorOff, onPlayerFixedSelector, blinkingSelector, transperantBlocksFromOtherWorlds;
 		Block selector;
-		boolean transperantBlocksFromOtherWorlds;
-
-		double tntExplosionRadius = 5;
+		double tntExplosionRadius;
+		String canBreak, canBreakThrough;
 
 		public String selector(World world, double ticksPerSecond, boolean renderMode) {
 			VectorD lookDir = getLookDir();
 			glColor4f(0, 0, 0, 1);
-			for (int m = 0; m < MathUtils.max(breakDistance.coords); m++) {
+			for (int m = 0; m < MathUtils.max(breakDistance.coords); m += 1) {
 				for (int i = 0; i < breakDistance.coords.length; i++)
 					if (lookDir.coords[0] * m > breakDistance.coords[0])
 						return "";
@@ -76,7 +73,7 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 				double y = position.getY() + lookDir.getY() * m + 0.05;
 				double z = position.getZ() + lookDir.getZ() * m;
 				double w = position.getW();
-				if ((world.getBlock((int) x, (int) y, (int) z, (int) w).isBreakable() || canBreakAll && world.getBlock((int) x, (int) y, (int) z, (int) w).id != 0)) {
+				if (canBreak(world.getBlock(x, y, z, w))) {
 					if (renderMode) {
 						if (lineSelector) {
 							glTranslated(x, y - 0.1, z);
@@ -111,20 +108,47 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 						}
 						if (input.isButtonDown(1)) {
 							breakTime = 0;
-							if (world.getBlock((int) x, (int) y, (int) z, (int) w).getName().contains("tnt"))
+							if (world.getBlock(x, y, z, w).getName().contains("tnt"))
 								return "explosion " + (x - lookDir.getX()) + " " + (y - lookDir.getY()) + " " + (z - lookDir.getZ()) + " " + (w - lookDir.getW()) + " " + tntExplosionRadius;
 							else return "setblock " + (x - lookDir.getX()) + " " + (y - lookDir.getY()) + " " + (z - lookDir.getZ()) + " " + (w - lookDir.getW()) + " " + idInHand;
 						}
 						if (input.isButtonDown(2)) {
 							breakTime = 0;
-							idInHand = world.getBlock((int) x, (int) y, (int) z, (int) w).id;
+							idInHand = world.getBlock(x, y, z, w).id;
 							return "getblock " + x + " " + y + " " + z + " " + w;
 						}
 					}
-				}
+				} else if (!canBreakThrough(world.getBlock(x, y, z, w)))
+					return "";
 			}
 			breakTime++;
 			return "";
+		}
+
+		public boolean canBreak(Block block) {
+			String canBreak = "," + this.canBreak + ",";
+
+			if ((canBreak.contains(",all,") || canBreak.contains(",*,")) && !(canBreak.contains(",!" + block.getName() + ",") || canBreak.contains(",!" + block.id + ",")) && block.id != 0)
+				return true;
+			if (block.isBreakable() && canBreak.contains(",default,") && !(canBreak.contains(",!" + block.getName() + ",") || canBreak.contains(",!" + block.id + ",")) && block.id != 0)
+				return true;
+			if (canBreak.contains("," + block.getName() + ",") || canBreak.contains("," + block.id + ","))
+				return true;
+			return false;
+		}
+
+		public boolean canBreakThrough(Block block) {
+			String through = "," + this.canBreakThrough + ",";
+
+			if (block.id == 0)
+				return true;
+			if ((through.contains(",all,") || through.contains(",*,")) && !(through.contains(",!" + block.getName() + ",") || through.contains(",!" + block.id + ",")))
+				return true;
+			if (!block.isBreakable() && through.contains(",default,") && !(through.contains(",!" + block.getName() + ",") || through.contains(",!" + block.id + ",")))
+				return true;
+			if (through.contains("," + block.getName() + ",") || through.contains("," + block.id + ","))
+				return true;
+			return false;
 		}
 
 		double breakTime;

@@ -1,13 +1,17 @@
 package ru.alexanderdv.modcraft;
 
-import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL11.GL_CULL_FACE;
+import static org.lwjgl.opengl.GL11.GL_QUADS;
 import static org.lwjgl.opengl.GL11.glBegin;
 import static org.lwjgl.opengl.GL11.glBindTexture;
 import static org.lwjgl.opengl.GL11.glColor4f;
+import static org.lwjgl.opengl.GL11.glDisable;
+import static org.lwjgl.opengl.GL11.glEnable;
 import static org.lwjgl.opengl.GL11.glEnd;
 import static org.lwjgl.opengl.GL11.glScaled;
 import static org.lwjgl.opengl.GL11.glTexCoord2f;
 
+import java.io.Serializable;
 import java.util.HashMap;
 
 import org.lwjgl.util.vector.Vector4f;
@@ -15,7 +19,9 @@ import org.lwjgl.util.vector.Vector4f;
 import ru.alexanderdv.utils.VectorD;
 import ru.alexanderdv.utils.lwjgl.VerticalNormalised;
 
-public class Block implements VerticalNormalised {
+public class Block implements VerticalNormalised, Serializable {
+	private static final long serialVersionUID = -4189237333497371824L;
+
 	private static int _enum_counter = 0;
 
 	public static enum Side implements VerticalNormalised {// { 1, 0 }, { 0, 0 }, { 0, 1 }, { 1, 1 } rotated down
@@ -61,12 +67,26 @@ public class Block implements VerticalNormalised {
 	public static final HashMap<Integer, String> names = new HashMap<>();
 	public static double sizeResolution = 100000000;
 
-	World world;
 	int x, y, z, w;
 	int id;
 
-	public Block(World world, int x, int y, int z, int w, int id) {
-		this.world = world;
+//	private void writeObject(ObjectOutputStream oos) throws IOException {
+//		oos.writeInt(id);
+//		oos.writeInt(x);
+//		oos.writeInt(y);
+//		oos.writeInt(z);
+//		oos.writeInt(w);
+//	}
+//
+//	private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
+//		id = ois.readInt();
+//		x = ois.readInt();
+//		y = ois.readInt();
+//		z = ois.readInt();
+//		w = ois.readInt();
+//	}
+
+	public Block(int x, int y, int z, int w, int id) {
 		this.x = x;
 		this.y = y;
 		this.z = z;

@@ -13,15 +13,16 @@ import java.util.Random;
 
 import ru.alexanderdv.modcraft.PhysicalPOV.Collider;
 import ru.alexanderdv.modcraft.PhysicalPOV.PhysicalEnviroment;
+import ru.alexanderdv.modcraft.interfaces.Generation;
 import ru.alexanderdv.utils.MathUtils;
 import ru.alexanderdv.utils.VectorD;
 
 public class World implements Serializable, PhysicalEnviroment {
 	private static final long serialVersionUID = 8984301574021898451L;
 
-	VectorD size;
+	public VectorD size;
 	HashMap<Integer, Block> blocks;
-	Generation[] generations;
+	public Generation[] generations;
 
 	private void writeObject(ObjectOutputStream oos) throws IOException {
 		oos.writeObject(size);
@@ -94,10 +95,11 @@ public class World implements Serializable, PhysicalEnviroment {
 	private void init() {
 		blocks = new HashMap<>();
 		needHide = new HashMap<>();
+		gravity = 9.8;
 	}
 
 	HashMap<Integer, boolean[]> needHide;
-	boolean loop = true, clamp = false, repeat;
+	public boolean loop = true, clamp = false, repeat;
 
 	private int toPosInArr(double x, double y, double z, double w) { return ((((int) x * (int) size.coords[1] + (int) y) * (int) size.coords[2] + (int) z) * (int) size.coords[3] + (int) w); }
 
@@ -110,6 +112,8 @@ public class World implements Serializable, PhysicalEnviroment {
 	public void setBlock(double x, double y, double z, double w, int id) { blocks.get(nullSafeGetPosInArray(x, y, z, w)).id = id; }
 
 	public Block getBlock(double x, double y, double z, double w) { return blocks.get(nullSafeGetPosInArray(x, y, z, w)); }
+
+	public Block getBlock(VectorD position) { return getBlock(position.getX(), position.getY(), position.getZ(), position.getW()); }
 
 	private int nullSafeGetPosInArray(double x, double y, double z, double w) {
 		int posInArray = toPosInArrByFlags(x, y, z, w);
@@ -140,12 +144,12 @@ public class World implements Serializable, PhysicalEnviroment {
 						!getBlock(x, y, z + 1, w).isTransparent(), !getBlock(x, y, z - 1, w).isTransparent(), });
 	}
 
-	boolean border = true, blocksHaveCollision = true;
+	public boolean border = true, blocksHaveCollision = true;
 
 	/** Setting in WorldConfig */
-	Collider borderCollider, nonSolidBlocksCollider, collider;
+	public Collider borderCollider, nonSolidBlocksCollider, collider;
 
-	double gravity = 9.8;
+	public double gravity;
 
 	@Override
 	public double getGravity() { return gravity; }

@@ -10,6 +10,7 @@ import javax.security.auth.Destroyable;
 import javax.swing.JPanel;
 
 import ru.alexanderdv.modcraft.Input.DisplayInput;
+import ru.alexanderdv.modcraft.interfaces.Repaintable;
 
 public class FramesManager implements Destroyable {
 	public static class FrameShell implements Repaintable, Destroyable {

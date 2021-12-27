@@ -11,9 +11,9 @@ public class PhysicalPOV extends POV {
 
 	public static interface PhysicalEnviroment { double getGravity(); }
 
-	protected VectorD velocity = new VectorD(position.size()), volution = new VectorD(rotation.size());
-	protected VectorD velocityIncreasing = new VectorD(velocity.size()), volutionIncreasing = new VectorD(volution.size());
-	protected VectorD size = new VectorD(position.size());
+	public VectorD velocity = new VectorD(position.size()), volution = new VectorD(rotation.size());
+	public VectorD velocityIncreasing = new VectorD(velocity.size()), volutionIncreasing = new VectorD(volution.size());
+	public VectorD size = new VectorD(position.size());
 
 	public String getF3() {
 		String f3 = "";
@@ -40,7 +40,7 @@ public class PhysicalPOV extends POV {
 				0 });
 	}
 
-	protected double inertia = 10, kinematics = 5;
+	public double inertia = 10, kinematics = 5;
 
 	public void applyVelocityIncreasing(double[] velocity, double[] adding, double ticksPerSecond) { for (int i = 0; i < adding.length; i++) { velocity[i] += adding[i] / ticksPerSecond; } }
 
@@ -96,8 +96,8 @@ public class PhysicalPOV extends POV {
 		return false;
 	});
 
-	boolean collisionsInsideColliders;
-	double onCollisionMotionModifier, onCollisionVelocityModifier;
+	public boolean collisionsInsideColliders;
+	public double onCollisionMotionModifier, onCollisionVelocityModifier;
 
 	protected void move(double motion, double[] coords, double[] velocity, int axis) {
 		coords[axis] += motion;
@@ -130,7 +130,7 @@ public class PhysicalPOV extends POV {
 			}
 	}
 
-	double notInGroundTime;
+	public double notInGroundTime;
 
 	public double getInertia() { return inertia; }
 

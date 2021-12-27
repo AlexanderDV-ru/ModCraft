@@ -3,8 +3,8 @@ package ru.alexanderdv.modcraft;
 import java.util.ArrayList;
 import java.util.Scanner;
 
-import ru.alexanderdv.modcraft.Config.SConfig;
 import ru.alexanderdv.modcraft.Controller.UserController;
+import ru.alexanderdv.modcraft.configs.SConfig;
 import ru.alexanderdv.utils.MathUtils;
 import ru.alexanderdv.utils.MessageSystem.Msgs;
 import ru.alexanderdv.utils.VectorD;
@@ -19,11 +19,13 @@ public class Commands {
 	Thread systemConsoleScannerThread;
 	Scanner systemConsoleScanner;
 	SConfig permissions, commands;
+	Time time;
 
-	public Commands(ToServerSender toServerSender, UserController player, WorldEdit worldEdit) {
+	public Commands(ToServerSender toServerSender, UserController player, WorldEdit worldEdit, Time time) {
 		this.toServerSender = toServerSender;
 		this.player = player;
 		this.worldEdit = worldEdit;
+		this.time = time;
 		permissions = new SConfig("configs/permissions.cfg");
 		commands = new SConfig("configs/commands.cfg");
 		systemConsoleScannerThread = new Thread(() -> {
@@ -97,6 +99,8 @@ public class Commands {
 			worldEdit.createExplosion((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), (int) pos.getW(), args.length < 6 ? player.tntExplosionRadius : MathUtils.parseI(args[5]));
 		else if (cmd.equalsIgnoreCase("sphere"))
 			worldEdit.sphere((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), (int) pos.getW(), MathUtils.parseD(args[5]), args.length < 7 ? player.idInHand : MathUtils.parseI(args[6]), args.length < 8 ? false : args[7].equals("true"));
+		else if (cmd.equalsIgnoreCase("settimescale"))
+			time.changePhysicalScaleTo(MathUtils.parseD(args[1]));
 		else return "Unknown command '" + line + "' of '" + executor + "'";
 		return "Command '" + line + "' of '" + executor + "' performed";
 	}

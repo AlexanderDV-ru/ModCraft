@@ -9,6 +9,7 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.util.glu.GLU;
 
+import ru.alexanderdv.modcraft.configs.Config;
 import ru.alexanderdv.utils.ExceptionsHandler;
 
 public class Textures {

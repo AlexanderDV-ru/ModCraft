@@ -9,9 +9,9 @@ import static org.lwjgl.opengl.GL11.glScaled;
 import java.util.Arrays;
 
 import ru.alexanderdv.modcraft.Block.Side;
-import ru.alexanderdv.modcraft.Config.SConfig;
 import ru.alexanderdv.modcraft.Input.DisplayInput;
 import ru.alexanderdv.modcraft.Input.Key;
+import ru.alexanderdv.modcraft.configs.SConfig;
 import ru.alexanderdv.utils.MathUtils;
 import ru.alexanderdv.utils.Named;
 import ru.alexanderdv.utils.VectorD;
@@ -27,14 +27,14 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 
 	public String getF3() { return "Name: " + name + "\n" + "Vision: " + Arrays.toString(vision.coords) + "\n" + "BreakDistance: " + Arrays.toString(breakDistance.coords) + "\n" + super.getF3(); }
 
-	protected double jump = 20, sprint = 3;
-	protected double speed = 5/* meters in second */, sensitivity = 1;
-	protected boolean sprinting;
-	boolean[] canMoveTo = new boolean[position.size()], moveAtLook = new boolean[position.size()];
-	VectorD vision = new VectorD(position.size());
-	VectorD breakDistance = new VectorD(position.size());
-	int idInHand;
-	double blocksInSecond = 1;
+	public double jump = 20, sprint = 3;
+	public double speed = 5/* meters in second */, sensitivity = 1;
+	public boolean sprinting;
+	public boolean[] canMoveTo = new boolean[position.size()], moveAtLook = new boolean[position.size()];
+	public VectorD vision = new VectorD(position.size());
+	public VectorD breakDistance = new VectorD(position.size());
+	public int idInHand;
+	public double blocksInSecond = 1;
 
 	public boolean isFlying() { return canMoveTo[1]; }
 
@@ -57,10 +57,10 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 		public SConfig controls;
 
 		/** Is setting from PlayerConfig */
-		boolean lineSelector, blockSelectorOff, onPlayerFixedSelector, blinkingSelector, transperantBlocksFromOtherWorlds;
-		Block selector;
-		double tntExplosionRadius;
-		String canBreak, canBreakThrough;
+		public boolean lineSelector, blockSelectorOff, onPlayerFixedSelector, blinkingSelector, transperantBlocksFromOtherWorlds;
+		public Block selector;
+		public double tntExplosionRadius;
+		public String canBreak, canBreakThrough;
 
 		public String selector(World world, double ticksPerSecond, boolean renderMode) {
 			VectorD lookDir = getLookDir();
@@ -108,9 +108,7 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 						}
 						if (input.isButtonDown(1)) {
 							breakTime = 0;
-							if (world.getBlock(x, y, z, w).getName().contains("tnt"))
-								return "explosion " + (x - lookDir.getX()) + " " + (y - lookDir.getY()) + " " + (z - lookDir.getZ()) + " " + (w - lookDir.getW()) + " " + tntExplosionRadius;
-							else return "setblock " + (x - lookDir.getX()) + " " + (y - lookDir.getY()) + " " + (z - lookDir.getZ()) + " " + (w - lookDir.getW()) + " " + idInHand;
+							return rightButtonDown(world, x, y, z, w, lookDir);
 						}
 						if (input.isButtonDown(2)) {
 							breakTime = 0;
@@ -123,6 +121,12 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 			}
 			breakTime++;
 			return "";
+		}
+
+		public String rightButtonDown(World world, double x, double y, double z, double w, VectorD lookDir) {
+			if (world.getBlock(x, y, z, w).getName().contains("tnt"))
+				return "explosion " + x + " " + y + " " + z + " " + w + " " + tntExplosionRadius;
+			else return "setblock " + (x - lookDir.getX()) + " " + (y - lookDir.getY()) + " " + (z - lookDir.getZ()) + " " + (w - lookDir.getW()) + " " + idInHand;
 		}
 
 		public boolean canBreak(Block block) {
@@ -151,9 +155,9 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 			return false;
 		}
 
-		double breakTime;
+		public double breakTime;
 
-		boolean escape = true, ended;
+		public boolean escape = true, ended;
 
 		public void controls() {
 			if (controls.getInputValue(input, "after", "endprogram").coords[0] == 1)
@@ -214,13 +218,13 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 			volutionIncreasing.coords[1] += input.getVolutionY() * this.sensitivity;
 		}
 
-		boolean freecamOnFlying, freecamOnSpectator;
+		public boolean freecamOnFlying, freecamOnSpectator;
 
 		public boolean isFreecam() { return freecamOnFlying && moveAtLook[1] || freecamOnSpectator && collision.disabled; }
 
 		public boolean isInMenu() { return escape; }
 
-		VectorD renderWorldSize, count, modifier;
+		public VectorD renderWorldSize, count, modifier;
 
 		public void selectRenderDirectionByRotation(World world) {
 			if (renderWorldSize == null)

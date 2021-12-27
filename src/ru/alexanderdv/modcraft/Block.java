@@ -4,18 +4,25 @@ import static org.lwjgl.opengl.GL11.GL_CULL_FACE;
 import static org.lwjgl.opengl.GL11.GL_QUADS;
 import static org.lwjgl.opengl.GL11.glBegin;
 import static org.lwjgl.opengl.GL11.glBindTexture;
-import static org.lwjgl.opengl.GL11.glColor4f;
+import static org.lwjgl.opengl.GL11.glColor4d;
 import static org.lwjgl.opengl.GL11.glDisable;
 import static org.lwjgl.opengl.GL11.glEnable;
 import static org.lwjgl.opengl.GL11.glEnd;
+import static org.lwjgl.opengl.GL11.glPopMatrix;
+import static org.lwjgl.opengl.GL11.glPushMatrix;
 import static org.lwjgl.opengl.GL11.glScaled;
 import static org.lwjgl.opengl.GL11.glTexCoord2f;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.HashMap;
 
 import org.lwjgl.util.vector.Vector4f;
 
+import ru.alexanderdv.modcraft.configs.SConfig;
+import ru.alexanderdv.utils.MathUtils;
 import ru.alexanderdv.utils.VectorD;
 import ru.alexanderdv.utils.lwjgl.VerticalNormalised;
 
@@ -65,26 +72,27 @@ public class Block implements VerticalNormalised, Serializable {
 	}
 
 	public static final HashMap<Integer, String> names = new HashMap<>();
+	public static SConfig props;
 	public static double sizeResolution = 100000000;
 
-	int x, y, z, w;
-	int id;
+	public int x, y, z, w;
+	public int id;
 
-//	private void writeObject(ObjectOutputStream oos) throws IOException {
-//		oos.writeInt(id);
-//		oos.writeInt(x);
-//		oos.writeInt(y);
-//		oos.writeInt(z);
-//		oos.writeInt(w);
-//	}
-//
-//	private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
-//		id = ois.readInt();
-//		x = ois.readInt();
-//		y = ois.readInt();
-//		z = ois.readInt();
-//		w = ois.readInt();
-//	}
+	private void writeObject(ObjectOutputStream oos) throws IOException {
+		oos.writeInt(id);
+		oos.writeInt(x);
+		oos.writeInt(y);
+		oos.writeInt(z);
+		oos.writeInt(w);
+	}
+
+	private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
+		id = ois.readInt();
+		x = ois.readInt();
+		y = ois.readInt();
+		z = ois.readInt();
+		w = ois.readInt();
+	}
 
 	public Block(int x, int y, int z, int w, int id) {
 		this.x = x;
@@ -98,43 +106,64 @@ public class Block implements VerticalNormalised, Serializable {
 
 	public int[] getTextures() { return new int[] { id }; }
 
-	public Vector4f[] getColors() { return new Vector4f[] { getName().contains("leaves") || getName().contains("grass") ? new Vector4f(0, 1, 0, 1) : new Vector4f(1, 1, 1, 1) }; }
+	public Vector4f[] getColors() { return new Vector4f[] { getProps().contains(",biomed,") ? new Vector4f(0, 1, 0, 1) : new Vector4f(1, 1, 1, 1) }; }
 
 	public boolean isCollidable() { return !isGas() && !isLiquid() && !isVoid() && !isMeshed(); }
 
-	public boolean isTransparent() { return isGas() || isLiquid() || isVoid() || isMeshed() || getName().contains("glass"); }
+	public boolean isTransparent() { return (isGas() || isLiquid() || isVoid() || isMeshed()) && !getProps().contains(",!transparent,") || getProps().contains(",transparent,"); }
 
-	public boolean isMeshed() { return getName().contains("leaves") || getName().contains("sapling"); }
+	public boolean isMeshed() { return getProps().contains(",meshed,"); }
 
 	public boolean isSolid() { return !isVoid() && !isLiquid() && !isGas(); }
 
-	public boolean isLiquid() { return getName().contains("water") || getName().contains("lava"); }
+	public boolean isLiquid() { return getProps().contains(",liquid,"); }
 
-	public boolean isGas() { return getName().contains("air"); }
+	public boolean isGas() { return getProps().contains(",gas,"); }
 
 	public boolean isVoid() { return id < 0; }
 
-	float opacity = 1;
+	public VectorD colorModifier;
 
 	public void render(boolean[] hiddenSides) {
+		if (colorModifier == null)
+			colorModifier = new VectorD(4);
 		glScaled(sizeResolution / (sizeResolution + 1), sizeResolution / (sizeResolution + 1), sizeResolution / (sizeResolution + 1));
 		for (int i = 0; i < Side.values().length; i++)
-			if (!hiddenSides[i] && !(getName().contains("sapling") && (i != 1 && i != 4))) {
+			if (!hiddenSides[i] && !(getProps().contains(",onlysides,") && (i != 1 && i != 4)) && !(getProps().contains(",onlyquad,") && (i == 2 || i == 3))) {
 				Side side = Side.values()[i];
 				glBindTexture(3553, getTextures()[i % getTextures().length]);
-				glColor4f(getColors()[i % getColors().length].x, getColors()[i % getColors().length].y, getColors()[i % getColors().length].z, opacity);
-				if (getName().contains("sapling")) {
-					glTranslated(i == 1 ? 0.5 : 0, 0, i == 4 ? -0.5 : 0);
+				glColor4d(getColors()[i % getColors().length].x + colorModifier.getX(),
+
+						getColors()[i % getColors().length].y - colorModifier.getX(),
+
+						getColors()[i % getColors().length].z - colorModifier.getX(),
+
+						colorModifier.getW());
+				if (getProps().contains(",cullface,"))
 					glDisable(GL_CULL_FACE);
-				} else glEnable(GL_CULL_FACE);
+				else glEnable(GL_CULL_FACE);
+				glPushMatrix();
+				if (getProps().contains(",onlyquad,")) {
+					glTranslated(0.05, 0, 0.05);
+					glScaled(0.9, 1, 0.9);
+				}
+				if (getProps().contains(",offset,"))
+					glTranslated(i == 1 ? 0.5 : 0, 0, i == 4 ? -0.5 : 0);
+				if (getName().contains("cake"))
+					glTranslated(i == 0 ? -0.05 : (i == 1 ? 0.05 : 0), i == 2 ? -0.05 : (i == 3 ? 0.05 : 0), i == 4 ? -0.05 : (i == 5 ? 0.05 : 0));
 				glBegin(GL_QUADS);
 				side.render();
 				glEnd();
-				if (getName().contains("sapling"))
-					glTranslated(i == 1 ? -0.5 : 0, 0, i == 4 ? 0.5 : 0);
+				glPopMatrix();
 			}
 		glScaled((sizeResolution + 1) / sizeResolution, (sizeResolution + 1) / sizeResolution, (sizeResolution + 1) / sizeResolution);
 	}
 
 	public boolean isBreakable() { return isSolid() && !getName().contains("bedrock"); }
+
+	public String getProps() { return "," + (!props.get(getName()).equals("undefined") ? props.get(getName()) : props.get(id + "")) + ","; }
+
+	public double getDamage() { return (getProps().split("damage").length < 2 ? 0 : MathUtils.parseD(getProps().split("damage")[1].split(",")[0])); }
+
+	public double getHeal() { return (getProps().split("heal").length < 2 ? 0 : MathUtils.parseD(getProps().split("heal")[1].split(",")[0])); }
 }

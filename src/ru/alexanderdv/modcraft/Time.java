@@ -3,11 +3,13 @@ package ru.alexanderdv.modcraft;
 public class Time {
 	private double ticksPerSecond = 50, physicalScale = 1;
 
+	public boolean updateStopped;
+
 	public double getTicksPerSecond() { return ticksPerSecond; }
 
 	public double getPhysicalScale() { return physicalScale; }
 
-	public void changePhysicalScale(double scale) { this.physicalScale = scale; }
+	public void changePhysicalScaleTo(double scale) { this.physicalScale = scale; }
 
 	public double countRendersPerSecond() { return getResolution() / -(lastRender - (lastRender = countNowTime())); }
 
@@ -26,10 +28,11 @@ public class Time {
 	private double start = countNowTime(), lastRender = countNowTime(), lastUpdate = countNowTime(), remainingUpdateCount = 0;
 
 	public void doRemainingUpdateCount(Runnable updateMethod, Runnable doInLastUpdate) {
-		for (remainingUpdateCount += -(lastUpdate - (lastUpdate = countNowTime())) / getResolution() * ticksPerSecond; remainingUpdateCount > 0; remainingUpdateCount--) {
-			updateMethod.run();
-			if (remainingUpdateCount < 1)
-				doInLastUpdate.run();
-		}
+		for (remainingUpdateCount += -(lastUpdate - (lastUpdate = countNowTime())) / getResolution() * ticksPerSecond; remainingUpdateCount > 0; remainingUpdateCount--)
+			if (!updateStopped) {
+				updateMethod.run();
+				if (remainingUpdateCount < 1)
+					doInLastUpdate.run();
+			}
 	}
 }

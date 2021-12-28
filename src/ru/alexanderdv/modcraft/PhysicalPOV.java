@@ -42,12 +42,15 @@ public class PhysicalPOV extends POV {
 
 	public double inertia = 10, kinematics = 5;
 
+	public double gravityMass;
+
 	public void applyVelocityIncreasing(double[] velocity, double[] adding, double ticksPerSecond) { for (int i = 0; i < adding.length; i++) { velocity[i] += adding[i] / ticksPerSecond; } }
 
-	public void clearVelocityIncreasing(double[] velocity, double[] adding) { for (int i = 0; i < adding.length; i++) { adding[i] = 0; } }
+	public void clearVelocityIncreasing(double[] velocity, double[] adding, double ticksPerSecond) { for (int i = 0; i < adding.length; i++) { adding[i] = 0; } }
 
+//TODO if you not clear, but just minus adding, it will be hockey simulator
 	public void physics(PhysicalEnviroment enviroment) {
-		velocityIncreasing.coords[1] -= enviroment.getGravity() * (0 + notInGroundTime);
+		velocityIncreasing.coords[1] -= enviroment.getGravity() * gravityMass * (0 + notInGroundTime);
 		// TODO wind?
 	}
 
@@ -105,9 +108,12 @@ public class PhysicalPOV extends POV {
 	}
 
 	public void velocityMotionWithInertia(double[] coords, double[] velocity, double inertia, Collider... colliders) {
-		for (int axis = 0; axis < coords.length; axis++)
-			for (double i = 0; i < Math.min(Math.abs(velocity[axis] / inertia), 100); i++) {
-				double motion = i + 1 < Math.min(Math.abs(velocity[axis] / inertia), 100) ? (velocity[axis] / inertia < 0 ? -1 : 1) : (velocity[axis] / inertia) % 1;
+		for (int axis = 0; axis < coords.length; axis++) {
+			double inertiaVelocity = velocity[axis] / inertia;
+			if (maxMove != 0)
+				inertiaVelocity = Math.min(maxMove, inertiaVelocity);
+			for (double i = 0; i < Math.min(Math.abs(inertiaVelocity), 100); i++) {
+				double motion = i + 1 < Math.min(Math.abs(inertiaVelocity), 100) ? (inertiaVelocity < 0 ? -1 : 1) : inertiaVelocity % 1;
 
 				boolean hasCollisionBefore = collision.check(coords, size.coords, colliders);
 
@@ -128,9 +134,11 @@ public class PhysicalPOV extends POV {
 				if (axis == 1 && !hasCollision && i == 0)
 					notInGroundTime++;
 			}
+		}
 	}
 
 	public double notInGroundTime;
+	public double maxMove;
 
 	public double getInertia() { return inertia; }
 

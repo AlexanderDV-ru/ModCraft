@@ -42,17 +42,14 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 
 	public boolean isFlying() { return canMoveTo[1]; }
 
-	public void setFlying(boolean flying) { this.canMoveTo[1] = flying; }
+	public void setFlying(boolean flying) {
+		this.canMoveTo[1] = flying;
+		notInGroundTime = 0;
+	}
 
 	public boolean isEngah() { return canMoveTo[3]; }
 
 	public void setEngah(boolean engah) { this.canMoveTo[3] = engah; }
-
-	@Override
-	public void physics(PhysicalEnviroment enviroment) {
-		if (!isFlying())
-			super.physics(enviroment);
-	}
 
 	Block lastPickedBlock;
 	VectorD lastPickedPosition;
@@ -224,10 +221,9 @@ public class Controller extends PhysicalPOV implements Named, VerticalNormalised
 			if (isInMenu())
 				return;
 			for (Key input : this.input.nextKeys) {
-				if (controls.getInputValue(input, "switch", "fly").coords[0] == 1) {
+				if (controls.getInputValue(input, "switch", "fly").coords[0] == 1)
 					setFlying(!isFlying());
-					notInGroundTime = 0;
-				}
+				gravityMass = isFlying() ? 0 : 1;
 				if (controls.getInputValue(input, "switch", "engah").coords[0] == 1)
 					setEngah(!isEngah());
 				if (controls.getInputValue(input, "switch", "spectator").coords[0] == 1 || controls.getInputValue(input, "switch", "nocollision").coords[0] == 1)

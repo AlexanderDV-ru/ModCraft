@@ -1,15 +1,29 @@
 package ru.alexanderdv.modcraft;
 
-import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
+import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
+import static org.lwjgl.opengl.GL11.GL_DEPTH_TEST;
+import static org.lwjgl.opengl.GL11.GL_QUADS;
+import static org.lwjgl.opengl.GL11.glBegin;
+import static org.lwjgl.opengl.GL11.glBindTexture;
+import static org.lwjgl.opengl.GL11.glClear;
+import static org.lwjgl.opengl.GL11.glClearColor;
+import static org.lwjgl.opengl.GL11.glColor4f;
+import static org.lwjgl.opengl.GL11.glDisable;
+import static org.lwjgl.opengl.GL11.glEnable;
+import static org.lwjgl.opengl.GL11.glEnd;
+import static org.lwjgl.opengl.GL11.glPopMatrix;
+import static org.lwjgl.opengl.GL11.glPushMatrix;
+import static org.lwjgl.opengl.GL11.glRotated;
+import static org.lwjgl.opengl.GL11.glScaled;
+import static org.lwjgl.opengl.GL11.glViewport;
 
 import java.util.ArrayList;
 
 import javax.swing.JFrame;
 import javax.swing.JTextField;
 
-import ru.alexanderdv.modcraft.Commands.ToServerSender;
 import ru.alexanderdv.modcraft.Controller.UserController;
-import ru.alexanderdv.modcraft.Input.Key;
 import ru.alexanderdv.modcraft.configs.Config;
 import ru.alexanderdv.modcraft.configs.PlayerConfig;
 import ru.alexanderdv.modcraft.configs.SConfig;
@@ -19,7 +33,6 @@ import ru.alexanderdv.modcraft.interfaces.Damageable;
 import ru.alexanderdv.modcraft.interfaces.IWorld;
 import ru.alexanderdv.modcraft.interfaces.Shader;
 import ru.alexanderdv.utils.ExceptionsHandler;
-import ru.alexanderdv.utils.MathUtils;
 import ru.alexanderdv.utils.MessageSystem.Msgs;
 import ru.alexanderdv.utils.VectorD;
 import ru.alexanderdv.utils.lwjgl.VerticalNormalised;
@@ -27,8 +40,7 @@ import ru.alexanderdv.utils.lwjgl.VerticalNormalised;
 public class Main {
 	public static void main(String args[]) { new ModCraft(String.join(" ", args)).start(); }
 
-	public static class ModCraft implements VerticalNormalised, ToServerSender {
-		Networking client, server;
+	public static class ModCraft implements VerticalNormalised {
 		FramesManager frames;
 		Textures textures;
 		IWorld world;
@@ -67,16 +79,11 @@ public class Main {
 			camera = defaultCamera = new DefaultCamera();
 			guiPOV = new POV();
 			guiPOV.position.setZ(-1);
-			commands = new Commands(this, player, new WorldEdit(world), time);
-
-			final String ar = args;
-			try {
-				client = new Networking();
-			} catch (Exception e) {}
-			try {
-				server = new Networking();
-				server.startInExceptionThread(() -> server.startServer(player.getName(), MathUtils.parseI(ar.split("-port:")[1].split(" ")[0])), (e) -> {});
-			} catch (Exception e) {}
+			commands = new Commands(args, player, new WorldEdit(world), time);
+			commands.smoothMotion = guiConfig.bool("smoothMotion");
+			commands.dontDebugPlayerBlockBreakAndPlace = guiConfig.bool("dontDebugPlayerBlockBreakAndPlace");
+			Msgs.last.debug(commands.perform("console", "startclient").replace(";", "\n"));
+			Msgs.last.debug(commands.perform("console", "startserver").replace(";", "\n"));// TODO what executors save: keyboard, console, frame, [nick], code
 
 			shaders.add(new FlickingShader());
 		}
@@ -92,8 +99,11 @@ public class Main {
 			if (!guiConfig.bool("dontShowConsole"))
 				debugFrame.add(console);
 			frames.debugFrame.init(debugFrame);
-			debugFrame.setVisible(!guiConfig.bool("dontShowDebugWindow"));
-			frames.displayFrame.init(Config.hasArg("--displayInFrame", args) ? new JFrame() : null);
+			debugFrame.setVisible(guiConfig.bool("debugWindowVisible"));
+			debugFrame.setLocation((int) guiConfig.num("debugWindowX", 0), (int) guiConfig.num("debugWindowY", 0));
+			debugFrame.setSize((int) guiConfig.num("debugWindowWidth", 400), (int) guiConfig.num("debugWindowHeight", 600));
+			if (!guiConfig.bool("dontShowConsole"))
+				frames.displayFrame.init(Config.hasArg("--displayInFrame", args) ? new JFrame() : null);
 			frames.display.init(frames.displayFrame.frame);// TODO If rendering in other thread, it's also
 			frames.display.setVSyncEnabled(Config.hasArg("--vsync", args));
 			frames.display.setResizable(!Config.hasArg("--notresizable", args));
@@ -121,17 +131,29 @@ public class Main {
 			endProgram();
 		}
 
+		int counter;
+
 		public void ticks() {
+			for (PhysicalPOV player : commands.players.values())
+				physicals.add(player);
 			time.doRemainingUpdateCount(() -> {
+				counter++;
 				for (PhysicalPOV physical : physicals) {
-					physical.clearVelocityIncreasing(physical.velocity.coords, physical.velocityIncreasing.coords);
-					physical.clearVelocityIncreasing(physical.volution.coords, physical.volutionIncreasing.coords);
+					physical.clearVelocityIncreasing(physical.velocity.coords, physical.velocityIncreasing.coords, time.getTicksPerSecond());
+					physical.clearVelocityIncreasing(physical.volution.coords, physical.volutionIncreasing.coords, time.getTicksPerSecond());
 				}
 				frames.input.nextKeys.clear();
 				frames.input.update();
 				player.controls();
-				performWaitingCommands();
-				if (player.escape && !isClient() && !isServer())
+				if (counter > time.getTicksPerSecond() / guiConfig.num("updatesInSecond", 2)) {
+					if (commands.client.socket != null)
+						commands.command(player.getName(), "updateplayerpos " + player.position.getX() + " " + player.position.getY() + " " + player.position.getZ() + " " + player.position.getW() + " " +
+
+								player.velocity.getX() + " " + player.velocity.getY() + " " + player.velocity.getZ() + " " + player.velocity.getW() + " " + player.gravityMass);
+					counter = 0;
+				}
+				commands.performWaitingCommands(frames.input);
+				if (player.escape && !commands.isClient() && !commands.isServer())
 					return;
 				for (int i = 0; i < time.getPhysicalScale(); i++) {
 					for (PhysicalPOV physical : physicals) {
@@ -149,6 +171,8 @@ public class Main {
 					commands.command(player.getName(), player.selector(world, time.getTicksPerSecond(), false));
 				}
 			}, () -> shaders.forEach((shader) -> shader.update()));
+			for (PhysicalPOV player : commands.players.values())
+				physicals.remove(player);
 		}
 
 		public void render() {
@@ -175,6 +199,20 @@ public class Main {
 					glTranslated(-(int) x, -(int) y, -(int) z);
 				}
 			});
+
+			for (String name : commands.players.keySet())
+				if (guiConfig.bool("dontShowYourselfSkin") ? !player.getName().equals(name) : !guiConfig.bool("dontShowPlayersSkins")) {
+					glPushMatrix();
+					glTranslated(commands.players.get(name).position.getX() - player.size.getX(),
+							
+							commands.players.get(name).position.getY() - player.size.getY(),
+							
+							commands.players.get(name).position.getZ() - player.size.getZ());
+					glScaled(player.size.getX() * 2, player.size.getY() * 2, player.size.getZ() * 2);
+					new Block(0, 0, 0, 0, Math.abs(name.hashCode()) % Block.names.size()).render(new boolean[6]);
+					glPopMatrix();
+				}
+
 			player.selector(world, time.getTicksPerSecond(), true);
 			camera.closeEyes();
 
@@ -253,45 +291,14 @@ public class Main {
 			public abstract void render(double screenWidth, double screenHeight);
 		}
 
-		public boolean isServer() { return !(args.split("-port:").length < 2 || args.split("-port:")[1].split(" ")[0].length() < 1); }
-
-		public boolean isClient() { return !(args.split("-serverip:").length < 2 || args.split("-serverip:")[1].split(" ")[0].length() < 1); }
-
-		@Override
-		public void sendToServer(String executor, String cmd) {
-			if (!isClient())
-				return;
-			client.writeRequests.put(cmd, "");
-			client.startInExceptionThread(() -> client.startClient(executor, args.split("-serverip:")[1].split(" ")[0], MathUtils.parseI(args.split("-serverport:")[1].split(" ")[0])));
-		}
-
-		public void performWaitingCommands() {
-			try {
-				for (String cmd : server.readenRequests.keySet())
-					commands.command(server.readenRequests.get(cmd), cmd);
-				server.readenRequests.clear();
-			} catch (Exception e) {}
-			try {
-				for (String cmd : client.readenRequests.keySet())
-					commands.command(client.readenRequests.get(cmd), cmd);
-				client.readenRequests.clear();
-			} catch (Exception e) {}
-			for (String macros : commands.commands.keySet())
-				for (String macro : macros.split(","))
-					if (macro.toLowerCase().startsWith("key_"))
-						for (Key input : frames.input.nextKeys)
-							if (input.isKeyDown(macro))
-								commands.command("keyboard", macro);
-		}
-
 		private String getF3() { return "FPS: " + time.fps() + "\n" + player.getF3(); }
 
 		private boolean isEnded() { return player != null && player.ended || frames != null && frames.isDestroyed(); }
 
 		private void endProgram() {
 			ExceptionsHandler.tryCatchVoid(() -> frames.destroy(), (e) -> e.printStackTrace());
-			ExceptionsHandler.tryCatchVoid(() -> client.closeAll(), (e) -> e.printStackTrace());
-			ExceptionsHandler.tryCatchVoid(() -> server.closeAll(), (e) -> e.printStackTrace());
+			ExceptionsHandler.tryCatchVoid(() -> commands.client.closeAll(), (e) -> e.printStackTrace());
+			ExceptionsHandler.tryCatchVoid(() -> commands.server.closeAll(), (e) -> e.printStackTrace());
 			ExceptionsHandler.tryCatchVoid(() -> commands.close(), (e) -> e.printStackTrace());
 			ExceptionsHandler.tryCatchVoid(() -> worldConfig.saveWorld(world), (e) -> e.printStackTrace());
 			ExceptionsHandler.tryCatchVoid(() -> Msgs.last.debug("Closed with exit code 0"), (e) -> e.printStackTrace());

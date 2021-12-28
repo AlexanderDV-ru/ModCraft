@@ -10,6 +10,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ConcurrentHashMap;
 
+import javax.swing.Timer;
+
 import ru.alexanderdv.utils.ExceptionsHandler.VoidExceptionRunnable;
 import ru.alexanderdv.utils.MessageSystem.Msgs;
 
@@ -24,15 +26,25 @@ public class Networking {
 	public void startServer(String name, int port) throws Exception {
 		this.name = name;
 		server = new ServerSocket(port);
+		new Timer(1000, (a) -> {
+			try {
+				if (socket != null)
+					socket.close();
+			} catch (IOException e) {
+				Msgs.last.debug(e);
+			}
+		}).start();
 		for (Socket s; !stopped && !server.isClosed();)
 			try {
-				Msgs.last.debug("try to accept");
+				//Msgs.last.debug("try to accept");
 				initSocket(s = server.accept());
 				if (s == null)
 					continue;
-				Msgs.last.debug("accepted");
+				//Msgs.last.debug("accepted");
 				socketReader(socket);
-			} catch (Exception e) {}
+			} catch (Exception e) {
+				Msgs.last.debug(e);
+			}
 	}
 
 	public ConcurrentHashMap<String, String> writeRequests = new ConcurrentHashMap<String, String>();
@@ -41,8 +53,13 @@ public class Networking {
 		this.name = name;
 		initSocket(new Socket(ip, port));
 		for (String request : writeRequests.keySet())
-			write(request);
+			try {
+				write(request);
+			} catch (Exception e) {
+				// TODO: handle exception
+			}
 		writeRequests.clear();
+		// writer.flush();
 		closeAll();
 	}
 
@@ -67,7 +84,7 @@ public class Networking {
 
 	public void write(String line) throws IOException {
 		writer.write(name + ":" + line + "\n");
-		Msgs.last.debug("[Write:] " + line);
+		//Msgs.last.debug("[Write:] " + line);
 	}
 
 	public String read() throws IOException {
@@ -75,7 +92,7 @@ public class Networking {
 		if (line != null) {
 			String name = line.split(":")[0];
 			line = line.split(":")[1];
-			Msgs.last.debug("[Read from '" + name + "'] " + line);
+			//Msgs.last.debug("[Read from '" + name + "'] " + line);
 			readenRequests.put(line, name);
 			socket.close();
 		}

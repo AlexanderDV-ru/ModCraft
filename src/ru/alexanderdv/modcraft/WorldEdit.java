@@ -1,9 +1,11 @@
 package ru.alexanderdv.modcraft;
 
-public class WorldEdit {
-	World world;
+import ru.alexanderdv.modcraft.interfaces.IWorld;
 
-	public WorldEdit(World world) { this.world = world; }
+public class WorldEdit {
+	IWorld world;
+
+	public WorldEdit(IWorld world) { this.world = world; }
 
 	public void createExplosion(double ex, double ey, double ez, double ew, double radius) { sphere(ex, ey, ez, ew, radius, 0, false); }
 

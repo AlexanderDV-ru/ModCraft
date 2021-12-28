@@ -75,34 +75,17 @@ public class Block implements VerticalNormalised, Serializable {
 	public static SConfig props;
 	public static double sizeResolution = 100000000;
 
-	public int x, y, z, w;
-	public int id;
+	private int id;
 
-	private void writeObject(ObjectOutputStream oos) throws IOException {
-		oos.writeInt(id);
-		oos.writeInt(x);
-		oos.writeInt(y);
-		oos.writeInt(z);
-		oos.writeInt(w);
-	}
+	public int getId() { return id; }
 
-	private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
-		id = ois.readInt();
-		x = ois.readInt();
-		y = ois.readInt();
-		z = ois.readInt();
-		w = ois.readInt();
-	}
+	private void writeObject(ObjectOutputStream oos) throws IOException { oos.writeInt(id); }
 
-	public Block(int x, int y, int z, int w, int id) {
-		this.x = x;
-		this.y = y;
-		this.z = z;
-		this.w = w;
-		this.id = id;
-	}
+	private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException { id = ois.readInt(); }
 
-	public String getName() { return names.get(id); }
+	public Block(int x, int y, int z, int w, int id) { this.id = id; }
+
+	public String getName() { return names.get(id) + ""; }
 
 	public int[] getTextures() { return new int[] { id }; }
 
@@ -127,9 +110,10 @@ public class Block implements VerticalNormalised, Serializable {
 	public void render(boolean[] hiddenSides) {
 		if (colorModifier == null)
 			colorModifier = new VectorD(4);
+		glPushMatrix();
 		glScaled(sizeResolution / (sizeResolution + 1), sizeResolution / (sizeResolution + 1), sizeResolution / (sizeResolution + 1));
 		for (int i = 0; i < Side.values().length; i++)
-			if (!hiddenSides[i] && !(getProps().contains(",onlysides,") && (i != 1 && i != 4)) && !(getProps().contains(",onlyquad,") && (i == 2 || i == 3))) {
+			if (!hiddenSides[i] && id > 0 && !(getProps().contains(",onlysides,") && (i != 1 && i != 4)) && !(getProps().contains(",onlyquad,") && (i == 2 || i == 3))) {
 				Side side = Side.values()[i];
 				glBindTexture(3553, getTextures()[i % getTextures().length]);
 				glColor4d(getColors()[i % getColors().length].x + colorModifier.getX(),
@@ -138,7 +122,7 @@ public class Block implements VerticalNormalised, Serializable {
 
 						getColors()[i % getColors().length].z - colorModifier.getX(),
 
-						colorModifier.getW());
+						getColors()[i % getColors().length].w - colorModifier.getW());
 				if (getProps().contains(",cullface,"))
 					glDisable(GL_CULL_FACE);
 				else glEnable(GL_CULL_FACE);
@@ -156,7 +140,7 @@ public class Block implements VerticalNormalised, Serializable {
 				glEnd();
 				glPopMatrix();
 			}
-		glScaled((sizeResolution + 1) / sizeResolution, (sizeResolution + 1) / sizeResolution, (sizeResolution + 1) / sizeResolution);
+		glPopMatrix();
 	}
 
 	public boolean isBreakable() { return isSolid() && !getName().contains("bedrock"); }

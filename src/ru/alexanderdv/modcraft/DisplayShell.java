@@ -4,6 +4,7 @@ import java.awt.Canvas;
 import java.awt.Graphics;
 import java.awt.Image;
 
+import org.lwjgl.LWJGLException;
 import org.lwjgl.opengl.Display;
 
 import ru.alexanderdv.modcraft.FramesManager.FrameShell;
@@ -14,7 +15,7 @@ public class DisplayShell extends FrameShell {
 
 	Canvas canvas;
 
-	public void init(java.awt.Frame frame) {
+	public void init(java.awt.Frame frame) throws RuntimeException {
 		this.frame = frame;
 		try {
 			if (frame != null)
@@ -24,7 +25,7 @@ public class DisplayShell extends FrameShell {
 					@Override
 					public void paint(Graphics g) {
 						super.paint(g);
-						//this.setMinimumSize(frame.getSize());
+						// this.setMinimumSize(frame.getSize());
 						int y = 0, lineOffset = 20;
 						for (Object message : messages.values())
 							if (message instanceof Image)
@@ -34,13 +35,9 @@ public class DisplayShell extends FrameShell {
 				}));
 			Display.setTitle(frame != null ? frame.getTitle() : parentName);
 			Display.create();
-
-			Display.setVSyncEnabled(true);
-			Display.setResizable(true);
-			Display.setFullscreen(false);
 			super.init(frame);
 		} catch (Exception e) {
-			e.printStackTrace();
+			throw new RuntimeException("Error when display initialization", e);
 		}
 	}
 
@@ -62,4 +59,16 @@ public class DisplayShell extends FrameShell {
 	public int getWidth() { return canvas != null ? canvas.getWidth() : Display.getWidth(); }
 
 	public int getHeight() { return canvas != null ? canvas.getHeight() : Display.getHeight(); }
+
+	public void setVSyncEnabled(boolean vSync) { Display.setVSyncEnabled(vSync); }
+
+	public void setResizable(boolean resizable) { Display.setResizable(resizable); }
+
+	public void setFullscreen(boolean fullscreen) throws RuntimeException {
+		try {
+			Display.setFullscreen(fullscreen);
+		} catch (LWJGLException e) {
+			throw new RuntimeException("Error when setting fullscreen", e);
+		}
+	}
 }

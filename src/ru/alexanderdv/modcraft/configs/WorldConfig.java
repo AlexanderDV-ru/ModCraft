@@ -4,6 +4,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
 import ru.alexanderdv.modcraft.World;
+import ru.alexanderdv.modcraft.interfaces.IWorld;
 import ru.alexanderdv.utils.MathUtils;
 import ru.alexanderdv.utils.MessageSystem.Msgs;
 
@@ -31,8 +32,8 @@ public class WorldConfig extends SConfig {
 									} catch (Exception e) {
 										e.printStackTrace();
 									}
-			for (int i = 0; i < world.size.size(); i++)
-				if (world.size.coords[i] < 2)
+			for (int i = 0; i < world.getSize().size(); i++)
+				if (world.getSize().coords[i] < 2)
 					throw new RuntimeException("Zero world size");
 			for (int x = 0; x < saveIds.length; x++)
 				for (int y = 0; y < saveIds[x].length; y++)
@@ -60,6 +61,8 @@ public class WorldConfig extends SConfig {
 		world.clamp = cfg.bool("clamp");
 		world.repeat = cfg.bool("repeat");
 		world.loop = cfg.bool("loop");
+		world.dontUseNonInWorldBlock = !cfg.bool("useNotInWorldBlock");
+		world.setVoidId((int) cfg.num("notInWorldBlockId", -1));
 	}
 
 	private void setWorldLambdas() {
@@ -85,25 +88,25 @@ public class WorldConfig extends SConfig {
 		objectInputStream.close();
 	}
 
-	public void saveWorldTxt(World world) throws Exception {
+	public void saveWorldTxt(IWorld world) throws Exception {
 		SConfig cfg = new SConfig(getSavingPath());
 		String text = "";
-		for (int x = 0; x < world.size.coords[0]; x++, text += sp[0])
-			for (int y = 0; y < world.size.coords[1]; y++, text += sp[1])
-				for (int z = 0; z < world.size.coords[2]; z++, text += sp[2])
-					for (int w = 0; w < world.size.coords[3]; w++, text += sp[3])
-						text += world.getBlock(x, y, z, w).id;
+		for (int x = 0; x < world.getSize().coords[0]; x++, text += sp[0])
+			for (int y = 0; y < world.getSize().coords[1]; y++, text += sp[1])
+				for (int z = 0; z < world.getSize().coords[2]; z++, text += sp[2])
+					for (int w = 0; w < world.getSize().coords[3]; w++, text += sp[3])
+						text += world.getBlock(x, y, z, w).getId();
 		cfg.saveConfigText(_path.replace(".save", ".txt"), text);
 	}
 
-	public void saveWorldDat(World world) throws Exception {
+	public void saveWorldDat(IWorld world) throws Exception {
 		ObjectOutputStream objectOutputStream = new ObjectOutputStream(getOutputStream(getSavingPath()));
 		objectOutputStream.writeObject(world);
 		objectOutputStream.flush();
 		objectOutputStream.close();
 	}
 
-	public void saveWorld(World world) {
+	public void saveWorld(IWorld world) {
 		SConfig cfgCfg = getCfg();
 		Msgs.last.debug("Saving world to '" + getSavingPath() + "'...");
 		try {
@@ -115,7 +118,7 @@ public class WorldConfig extends SConfig {
 		}
 	}
 
-	public World getWorld() {
+	public IWorld getWorld() {
 		SConfig cfg = getCfg();
 		if (world == null)
 			try {

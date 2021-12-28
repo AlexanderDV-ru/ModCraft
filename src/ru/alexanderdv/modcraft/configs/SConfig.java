@@ -14,7 +14,9 @@ public class SConfig extends Config<String> {
 	@Override
 	public String get(Object key) { return super.get(key) != null ? super.get(key) : "undefined"; }
 
-	public String get(Object key, String defaultValue) { return bool(key) ? get(key) : defaultValue; }
+	public String get(Object key, String defaultValue) { return has(key) ? get(key) : defaultValue; }
+
+	public boolean has(Object key) { return !get(key).matches("undefined|null|[ ]*"); }
 
 	public boolean toBool(String value) { return !value.matches("false|undefined|default|null|[0.]+|not|no|n|[ ]*"); }
 

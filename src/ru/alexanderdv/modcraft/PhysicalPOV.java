@@ -33,7 +33,7 @@ public class PhysicalPOV extends POV {
 
 				-Math.sin(Math.toRadians(rotation.getY())),
 
-				-Math.max(Math.min(isLooking() == Side.BACK ? Math.tan(Math.toRadians(180 - rotation.getX())) : Math.tan(Math.toRadians(rotation.getX())), 1), -1),
+				-Math.max(Math.min((isLooking() == Side.BACK ? Math.tan(Math.toRadians(180 - rotation.getX())) : Math.tan(Math.toRadians(rotation.getX()))), 3.14), -3.14),
 
 				+Math.cos(Math.toRadians(rotation.getY())),
 

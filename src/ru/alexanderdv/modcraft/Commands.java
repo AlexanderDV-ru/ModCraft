@@ -62,9 +62,11 @@ public class Commands {
 
 	protected String perform(String executor, String line) { return perform(executor, line, 0); }
 
+	VectorD pos, pos2;
+
 	protected String perform(String executor, String line, int recursion) {
 		String[] args = line.split(" ");
-		String cmd = args[0];
+		String cmd = args[0].replace("/", "");
 		if (args.length == 1 && args[0].replaceAll("[0-9.,+-]+", "").equals(""))
 			return perform(executor, MathUtils.loopGet(lastCommands, MathUtils.parseI(args[0])));
 		if (recursion < 5)
@@ -78,12 +80,38 @@ public class Commands {
 		if (!hasPermission(executor, cmd))
 			return "Not enough permissions of '" + executor + "' for command '" + line + "'!";
 		lastCommands.add(line);
-		VectorD pos = new VectorD(player.position.size());
-		for (int i = 0; i < player.position.size(); i++)
-			pos.coords[i] = args.length < 1 + i + 1 ? player.position.coords[i] : MathUtils.parseD(args[1 + i]) + (args[1 + i].startsWith("~") ? player.position.coords[i] : 0);
-		if (cmd.equalsIgnoreCase("setblock"))
-			worldEdit.world.setBlock((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), (int) pos.getW(), args.length < 6 ? player.idInHand : MathUtils.parseI(args[5]));
-		else if (cmd.equalsIgnoreCase("setposition"))
+		if (pos == null)
+			pos = new VectorD(player.position.size());
+		if (pos2 == null)
+			pos2 = new VectorD(player.position.size());
+		if (args.length > 2)
+			for (int i = 0; i < player.position.size(); i++)
+				pos.coords[i] = args.length < 1 + i + 1 ? player.position.coords[i] : MathUtils.parseD(args[1 + i]) + (args[1 + i].startsWith("~") ? player.position.coords[i] : 0);
+		if (cmd.equalsIgnoreCase("pos1")) {
+			for (int i = 0; i < player.position.size(); i++)
+				pos.coords[i] = args.length < 1 + i + 1 ? player.position.coords[i] : MathUtils.parseD(args[1 + i]) + (args[1 + i].startsWith("~") ? player.position.coords[i] : 0);
+		} else if (cmd.equalsIgnoreCase("pos2")) {
+			for (int i = 0; i < player.position.size(); i++)
+				pos2.coords[i] = args.length < 1 + i + 1 ? player.position.coords[i] : MathUtils.parseD(args[1 + i]) + (args[1 + i].startsWith("~") ? player.position.coords[i] : 0);
+		} else if (cmd.equalsIgnoreCase("setblock")) {
+			if (args.length < 3)
+				worldEdit.world.setBlocks((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), (int) pos.getW(),
+
+						(int) pos2.getX(), (int) pos2.getY(), (int) pos2.getZ(), (int) pos2.getW(),
+
+						args.length < 6 - 4 ? player.inventory[player.selectedSlot] : MathUtils.parseI(args[5 - 4]));
+			else if (args.length < 8)
+				worldEdit.world.setBlock((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), (int) pos.getW(), args.length < 6 ? player.inventory[player.selectedSlot] : MathUtils.parseI(args[5]));
+			else {
+				for (int i = 0; i < player.position.size(); i++)
+					pos2.coords[i] = args.length < 4 + 1 + i + 1 ? player.position.coords[i] : MathUtils.parseD(args[4 + 1 + i]) + (args[4 + 1 + i].startsWith("~") ? player.position.coords[i] : 0);
+				worldEdit.world.setBlocks((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), (int) pos.getW(),
+
+						(int) pos2.getX(), (int) pos2.getY(), (int) pos2.getZ(), (int) pos2.getW(),
+
+						args.length < 6 ? player.inventory[player.selectedSlot] : MathUtils.parseI(args[5 + 4]));
+			}
+		} else if (cmd.equalsIgnoreCase("setposition"))
 			for (int i = 0; i < player.position.size(); i++)
 				player.position.coords[i] = pos.coords[i];
 		else if (cmd.equalsIgnoreCase("setvelocity"))
@@ -98,7 +126,9 @@ public class Commands {
 		else if (cmd.equalsIgnoreCase("explosion"))
 			worldEdit.createExplosion((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), (int) pos.getW(), args.length < 6 ? player.tntExplosionRadius : MathUtils.parseI(args[5]));
 		else if (cmd.equalsIgnoreCase("sphere"))
-			worldEdit.sphere((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), (int) pos.getW(), MathUtils.parseD(args[5]), args.length < 7 ? player.idInHand : MathUtils.parseI(args[6]), args.length < 8 ? false : args[7].equals("true"));
+			worldEdit.sphere((int) pos.getX(), (int) pos.getY(), (int) pos.getZ(), (int) pos.getW(), MathUtils.parseD(args[5]), args.length < 7 ? player.inventory[player.selectedSlot] :
+
+					MathUtils.parseI(args[6]), args.length < 8 ? false : args[7].equals("true"));
 		else if (cmd.equalsIgnoreCase("settimescale"))
 			time.changePhysicalScaleTo(MathUtils.parseD(args[1]));
 		else return "Unknown command '" + line + "' of '" + executor + "'";

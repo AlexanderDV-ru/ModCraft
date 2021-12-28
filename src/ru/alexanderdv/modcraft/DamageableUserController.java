@@ -2,6 +2,7 @@ package ru.alexanderdv.modcraft;
 
 import ru.alexanderdv.modcraft.Controller.UserController;
 import ru.alexanderdv.modcraft.interfaces.Damageable;
+import ru.alexanderdv.modcraft.interfaces.IWorld;
 import ru.alexanderdv.utils.VectorD;
 
 public class DamageableUserController extends UserController implements Damageable {
@@ -45,7 +46,7 @@ public class DamageableUserController extends UserController implements Damageab
 	}
 
 	@Override
-	public String rightButtonDown(World world, double x, double y, double z, double w, VectorD lookDir) {
+	public String rightButtonDown(IWorld world, double x, double y, double z, double w, VectorD lookDir) {
 		if (world.getBlock(x, y, z, w).getHeal() != 0) {
 			heal(world.getBlock(x, y, z, w).getHeal());
 			world.setBlock(x, y, z, w, 0);
